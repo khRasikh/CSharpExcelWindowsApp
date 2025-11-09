@@ -205,7 +205,7 @@ namespace TestAddIn
             var nrCell = dgv.Rows[rowIndex].Cells["lastOrderNr"];
             var priceCell = dgv.Rows[rowIndex].Cells["lastOrderPrice"];
             var sizeCell = dgv.Rows[rowIndex].Cells["lastOrderSize"];
-
+           
             string articlID = nrCell.Value?.ToString() ?? "";
             var article = articles.FirstOrDefault(a => a.CompNum == articlID);
 
@@ -319,8 +319,8 @@ namespace TestAddIn
 
                     string anzID = dgv.Rows[curRow].Cells["lastOrderAnz"].Value?.ToString()?.Trim() ?? "";
                     var anz = articles.FirstOrDefault(a => a.CompNum == anzID);
-
-                    if (anz == null)
+                   
+                    if (anzID=="")
                     {
                         dgv.Rows[curRow].Cells["lastOrderAnz"].Value = 1;
                     }
@@ -352,7 +352,19 @@ namespace TestAddIn
                     dgv.BeginEdit(true);
                     return true;
                 }
+                else if (curCol == colLastOrderSize)
+                {
+                    dgv.EndEdit();
+                    dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
 
+                    string anzID = dgv.Rows[curRow].Cells["lastOrderSize"].Value?.ToString()?.Trim() ?? "";
+
+                    if (anzID == "")
+                    {
+                        dgv.Rows[curRow].Cells["lastOrderSize"].Value = 'S';
+                        LastOrderSize_KeyPress(dgv.EditingControl, new KeyPressEventArgs('S'));
+                    }
+                }
                 // --- Case 2: Enter on LastOrderExtra ---
                 // TODO: extra update
                 else if (curCol == colLastOrderExtra)
@@ -374,7 +386,7 @@ namespace TestAddIn
                         {
                             var extraItem = TestAddIn.extras.ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
                             // Get the old extra ID stored in the cell (if any)
-                            var oldExtraId = dgv.Rows[curRow].Cells[colLastOrderExtra].Tag  as int?;
+                            var oldExtraId = dgv.Rows[curRow].Cells[colLastOrderExtra].Tag as int?;
 
                             if (extraItem != null)
                             {
@@ -396,7 +408,7 @@ namespace TestAddIn
 
                                 // Store the current ID in the cell's Tag for tracking future changes
                                 dgv.Rows[curRow].Cells[colLastOrderExtra].Tag = extraItem.Id;
-                            } 
+                            }
                             else
                             {
                                 var oldExtra = extras.FirstOrDefault(e => e.Id == oldExtraId.Value);
@@ -1128,10 +1140,24 @@ namespace TestAddIn
                 var customers = Customer.GetAll();
                 // Group customers by Name and take the first occurrence
                 var matches = customers
-                    .Where(c => c.Str != null && c.Str.ToLower().StartsWith(input.ToLower()))
-                    .GroupBy(c => c.Name)
+                    .Where(c => c.Str != null && c.Str.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(c => Normalize(c.Str)) // remove duplicated addresses 
                     .Select(g => g.First())
                     .ToList();
+
+                string Normalize(string text)
+                {
+                    if (string.IsNullOrWhiteSpace(text))
+                        return string.Empty;
+
+                    return new string(
+                        text
+                        .Trim()
+                        .Normalize(NormalizationForm.FormC)
+                        .Where(ch => !char.IsControl(ch)) // remove hidden chars
+                        .ToArray()
+                    ).ToLowerInvariant(); // case-insensitive comparison
+                }
 
                 foreach (var customer in matches)
                 {
