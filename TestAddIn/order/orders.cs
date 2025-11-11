@@ -92,7 +92,7 @@ namespace TestAddIn.orders
 
             if (list.Any(o => !string.Equals(o.KNr, knr, StringComparison.Ordinal)))
             {
-                MessageBox.Show("Alle Bestellzeilen müssen die gleiche KNr besitzen.");
+                //MessageBox.Show("Alle Bestellzeilen müssen die gleiche KNr besitzen.");
                 return;
             }
 
@@ -129,7 +129,7 @@ namespace TestAddIn.orders
                 orders.RemoveAll(o => string.Equals(o.KNr, knr, StringComparison.Ordinal));
                 orders.AddRange(list);
 
-                MessageBox.Show("Die Bestellung(en) wurden erfolgreich gespeichert/ersetzt.");
+                //MessageBox.Show("Die Bestellung(en) wurden erfolgreich gespeichert/ersetzt.");
             }
             catch (Exception ex)
             {

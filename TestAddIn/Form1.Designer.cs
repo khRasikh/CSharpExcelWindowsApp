@@ -57,13 +57,14 @@ namespace TestAddIn
             this.personalInfoPanel = new System.Windows.Forms.Panel();
             this.label10 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.labelLastDiscountValue = new System.Windows.Forms.Label();
             this.lastOrdersTable = new System.Windows.Forms.DataGridView();
-            this.lastOrderAnz = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.lastOrderNr = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.lastOrderName = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.lastOrderSize = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.lastOrderExtra = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.lastOrderPrice = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.textBoxDiscount = new System.Windows.Forms.TextBox();
+            this.labelCountValue = new System.Windows.Forms.Label();
+            this.labelSumValue = new System.Windows.Forms.Label();
+            this.labelSum = new System.Windows.Forms.Label();
+            this.labelCount = new System.Windows.Forms.Label();
+            this.labelRabbat = new System.Windows.Forms.Label();
             this.labelKNR = new System.Windows.Forms.Label();
             this.knr = new System.Windows.Forms.TextBox();
             this.labelName = new System.Windows.Forms.Label();
@@ -91,13 +92,12 @@ namespace TestAddIn
             this.footerLabel7 = new System.Windows.Forms.Label();
             this.footerLabel8 = new System.Windows.Forms.Label();
             this.footerLabel9 = new System.Windows.Forms.Label();
-            this.labelRabbat = new System.Windows.Forms.Label();
-            this.labelCount = new System.Windows.Forms.Label();
-            this.labelSum = new System.Windows.Forms.Label();
-            this.labelSumValue = new System.Windows.Forms.Label();
-            this.labelCountValue = new System.Windows.Forms.Label();
-            this.textBoxDiscount = new System.Windows.Forms.TextBox();
-            this.labelLastDiscountValue = new System.Windows.Forms.Label();
+            this.lastOrderAnz = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.lastOrderNr = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.lastOrderName = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.lastOrderSize = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.lastOrderExtra = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.lastOrderPrice = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.bannerPanel.SuspendLayout();
             this.contextMenu.SuspendLayout();
             this.personalInfoPanel.SuspendLayout();
@@ -116,7 +116,6 @@ namespace TestAddIn
             this.search.Name = "search";
             this.search.Size = new System.Drawing.Size(308, 50);
             this.search.TabIndex = 0;
-            this.search.Text = " ";
             this.search.TextChanged += new System.EventHandler(this.search_TextChanged);
             this.search.KeyDown += new System.Windows.Forms.KeyEventHandler(this.search_KeyDown);
             // 
@@ -244,7 +243,7 @@ namespace TestAddIn
             this.personalInfoPanel.ForeColor = System.Drawing.Color.Yellow;
             this.personalInfoPanel.Location = new System.Drawing.Point(4, 50);
             this.personalInfoPanel.Name = "personalInfoPanel";
-            this.personalInfoPanel.Size = new System.Drawing.Size(1615, 647);
+            this.personalInfoPanel.Size = new System.Drawing.Size(1615, 721);
             this.personalInfoPanel.TabIndex = 2;
             this.personalInfoPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.personalInfoPanel_Paint);
             // 
@@ -263,12 +262,24 @@ namespace TestAddIn
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
             this.label1.ForeColor = System.Drawing.Color.Lime;
-            this.label1.Location = new System.Drawing.Point(406, 534);
+            this.label1.Location = new System.Drawing.Point(406, 649);
             this.label1.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(43, 36);
             this.label1.TabIndex = 24;
             this.label1.Text = "%";
+            // 
+            // labelLastDiscountValue
+            // 
+            this.labelLastDiscountValue.AutoSize = true;
+            this.labelLastDiscountValue.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
+            this.labelLastDiscountValue.ForeColor = System.Drawing.Color.Red;
+            this.labelLastDiscountValue.Location = new System.Drawing.Point(534, 648);
+            this.labelLastDiscountValue.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.labelLastDiscountValue.Name = "labelLastDiscountValue";
+            this.labelLastDiscountValue.Size = new System.Drawing.Size(96, 36);
+            this.labelLastDiscountValue.TabIndex = 23;
+            this.labelLastDiscountValue.Text = "€0.00";
             // 
             // lastOrdersTable
             // 
@@ -330,66 +341,82 @@ namespace TestAddIn
             this.lastOrdersTable.TabIndex = 16;
             this.lastOrdersTable.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridView1_CellContentClick);
             // 
-            // lastOrderAnz
+            // textBoxDiscount
             // 
-            dataGridViewCellStyle3.BackColor = System.Drawing.Color.MediumBlue;
-            dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle3.ForeColor = System.Drawing.Color.Yellow;
-            dataGridViewCellStyle3.Format = "N0";
-            dataGridViewCellStyle3.NullValue = null;
-            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.Color.MediumBlue;
-            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.Color.Yellow;
-            this.lastOrderAnz.DefaultCellStyle = dataGridViewCellStyle3;
-            this.lastOrderAnz.FillWeight = 7.793834F;
-            this.lastOrderAnz.HeaderText = "Anz";
-            this.lastOrderAnz.MaxInputLength = 3;
-            this.lastOrderAnz.MinimumWidth = 10;
-            this.lastOrderAnz.Name = "lastOrderAnz";
-            this.lastOrderAnz.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            this.textBoxDiscount.BackColor = System.Drawing.Color.MediumBlue;
+            this.textBoxDiscount.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.textBoxDiscount.Cursor = System.Windows.Forms.Cursors.IBeam;
+            this.textBoxDiscount.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.textBoxDiscount.ForeColor = System.Drawing.Color.Lime;
+            this.textBoxDiscount.Location = new System.Drawing.Point(465, 651);
+            this.textBoxDiscount.Margin = new System.Windows.Forms.Padding(2);
+            this.textBoxDiscount.Name = "textBoxDiscount";
+            this.textBoxDiscount.Size = new System.Drawing.Size(60, 34);
+            this.textBoxDiscount.TabIndex = 22;
+            this.textBoxDiscount.Text = "0";
+            this.textBoxDiscount.TextChanged += new System.EventHandler(this.textBoxDiscount_TextChanged);
+            this.textBoxDiscount.KeyDown += new System.Windows.Forms.KeyEventHandler(this.hanle_keys);
             // 
-            // lastOrderNr
+            // labelCountValue
             // 
-            dataGridViewCellStyle4.Format = "N0";
-            dataGridViewCellStyle4.NullValue = null;
-            this.lastOrderNr.DefaultCellStyle = dataGridViewCellStyle4;
-            this.lastOrderNr.FillWeight = 7.793834F;
-            this.lastOrderNr.HeaderText = "Nr.";
-            this.lastOrderNr.MaxInputLength = 3;
-            this.lastOrderNr.Name = "lastOrderNr";
+            this.labelCountValue.AutoSize = true;
+            this.labelCountValue.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
+            this.labelCountValue.ForeColor = System.Drawing.Color.Lime;
+            this.labelCountValue.Location = new System.Drawing.Point(864, 649);
+            this.labelCountValue.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.labelCountValue.Name = "labelCountValue";
+            this.labelCountValue.Size = new System.Drawing.Size(33, 36);
+            this.labelCountValue.TabIndex = 21;
+            this.labelCountValue.Text = "0";
             // 
-            // lastOrderName
+            // labelSumValue
             // 
-            this.lastOrderName.FillWeight = 12F;
-            this.lastOrderName.HeaderText = "Bez";
-            this.lastOrderName.MaxInputLength = 100;
-            this.lastOrderName.MinimumWidth = 10;
-            this.lastOrderName.Name = "lastOrderName";
+            this.labelSumValue.AutoSize = true;
+            this.labelSumValue.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
+            this.labelSumValue.ForeColor = System.Drawing.Color.Lime;
+            this.labelSumValue.Location = new System.Drawing.Point(1145, 648);
+            this.labelSumValue.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.labelSumValue.Name = "labelSumValue";
+            this.labelSumValue.Size = new System.Drawing.Size(78, 36);
+            this.labelSumValue.TabIndex = 20;
+            this.labelSumValue.Text = "0.00";
             // 
-            // lastOrderSize
+            // labelSum
             // 
-            this.lastOrderSize.FillWeight = 7.793834F;
-            this.lastOrderSize.HeaderText = "S/J";
-            this.lastOrderSize.MaxInputLength = 50;
-            this.lastOrderSize.Name = "lastOrderSize";
+            this.labelSum.AutoSize = true;
+            this.labelSum.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
+            this.labelSum.ForeColor = System.Drawing.Color.Yellow;
+            this.labelSum.Location = new System.Drawing.Point(1054, 648);
+            this.labelSum.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.labelSum.Name = "labelSum";
+            this.labelSum.Size = new System.Drawing.Size(87, 36);
+            this.labelSum.TabIndex = 19;
+            this.labelSum.Text = "Sum:";
             // 
-            // lastOrderExtra
+            // labelCount
             // 
-            dataGridViewCellStyle5.Format = "N0";
-            this.lastOrderExtra.DefaultCellStyle = dataGridViewCellStyle5;
-            this.lastOrderExtra.FillWeight = 18F;
-            this.lastOrderExtra.HeaderText = "Extra";
-            this.lastOrderExtra.MaxInputLength = 3;
-            this.lastOrderExtra.Name = "lastOrderExtra";
+            this.labelCount.AutoSize = true;
+            this.labelCount.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
+            this.labelCount.ForeColor = System.Drawing.Color.Yellow;
+            this.labelCount.Location = new System.Drawing.Point(733, 649);
+            this.labelCount.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.labelCount.Name = "labelCount";
+            this.labelCount.Size = new System.Drawing.Size(80, 36);
+            this.labelCount.TabIndex = 18;
+            this.labelCount.Text = "Anz:";
             // 
-            // lastOrderPrice
+            // labelRabbat
             // 
-            dataGridViewCellStyle6.Format = "N2";
-            dataGridViewCellStyle6.NullValue = null;
-            this.lastOrderPrice.DefaultCellStyle = dataGridViewCellStyle6;
-            this.lastOrderPrice.FillWeight = 7.793834F;
-            this.lastOrderPrice.HeaderText = "Preis";
-            this.lastOrderPrice.MaxInputLength = 10;
-            this.lastOrderPrice.Name = "lastOrderPrice";
+            this.labelRabbat.AutoSize = true;
+            this.labelRabbat.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
+            this.labelRabbat.ForeColor = System.Drawing.Color.Yellow;
+            this.labelRabbat.Location = new System.Drawing.Point(276, 648);
+            this.labelRabbat.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.labelRabbat.Name = "labelRabbat";
+            this.labelRabbat.Size = new System.Drawing.Size(126, 36);
+            this.labelRabbat.TabIndex = 16;
+            this.labelRabbat.Text = "Rabbat:";
+            this.labelRabbat.Click += new System.EventHandler(this.label1_Click_2);
             // 
             // labelKNR
             // 
@@ -449,7 +476,7 @@ namespace TestAddIn
             this.labelPhone.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(192)))));
             this.labelPhone.Font = new System.Drawing.Font("Microsoft Sans Serif", 20F, System.Drawing.FontStyle.Bold);
             this.labelPhone.ForeColor = System.Drawing.Color.Yellow;
-            this.labelPhone.Location = new System.Drawing.Point(875, 1);
+            this.labelPhone.Location = new System.Drawing.Point(967, 1);
             this.labelPhone.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.labelPhone.Name = "labelPhone";
             this.labelPhone.Size = new System.Drawing.Size(103, 31);
@@ -462,7 +489,7 @@ namespace TestAddIn
             this.phone.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.phone.Font = new System.Drawing.Font("Microsoft Sans Serif", 20F, System.Drawing.FontStyle.Bold);
             this.phone.ForeColor = System.Drawing.Color.Yellow;
-            this.phone.Location = new System.Drawing.Point(996, 1);
+            this.phone.Location = new System.Drawing.Point(1088, 1);
             this.phone.Margin = new System.Windows.Forms.Padding(2);
             this.phone.Name = "phone";
             this.phone.Size = new System.Drawing.Size(207, 31);
@@ -754,93 +781,68 @@ namespace TestAddIn
             this.footerLabel9.TabIndex = 8;
             this.footerLabel9.Text = "F7:";
             // 
-            // labelRabbat
+            // lastOrderAnz
             // 
-            this.labelRabbat.AutoSize = true;
-            this.labelRabbat.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
-            this.labelRabbat.ForeColor = System.Drawing.Color.Yellow;
-            this.labelRabbat.Location = new System.Drawing.Point(276, 533);
-            this.labelRabbat.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.labelRabbat.Name = "labelRabbat";
-            this.labelRabbat.Size = new System.Drawing.Size(126, 36);
-            this.labelRabbat.TabIndex = 16;
-            this.labelRabbat.Text = "Rabbat:";
-            this.labelRabbat.Click += new System.EventHandler(this.label1_Click_2);
+            dataGridViewCellStyle3.BackColor = System.Drawing.Color.MediumBlue;
+            dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle3.ForeColor = System.Drawing.Color.Yellow;
+            dataGridViewCellStyle3.Format = "N0";
+            dataGridViewCellStyle3.NullValue = null;
+            dataGridViewCellStyle3.Padding = new System.Windows.Forms.Padding(2);
+            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.Color.MediumBlue;
+            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.Color.Yellow;
+            this.lastOrderAnz.DefaultCellStyle = dataGridViewCellStyle3;
+            this.lastOrderAnz.FillWeight = 7.793834F;
+            this.lastOrderAnz.HeaderText = "Anz";
+            this.lastOrderAnz.MaxInputLength = 100;
+            this.lastOrderAnz.MinimumWidth = 10;
+            this.lastOrderAnz.Name = "lastOrderAnz";
+            this.lastOrderAnz.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
             // 
-            // labelCount
+            // lastOrderNr
             // 
-            this.labelCount.AutoSize = true;
-            this.labelCount.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
-            this.labelCount.ForeColor = System.Drawing.Color.Yellow;
-            this.labelCount.Location = new System.Drawing.Point(733, 534);
-            this.labelCount.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.labelCount.Name = "labelCount";
-            this.labelCount.Size = new System.Drawing.Size(80, 36);
-            this.labelCount.TabIndex = 18;
-            this.labelCount.Text = "Anz:";
+            dataGridViewCellStyle4.Format = "N0";
+            dataGridViewCellStyle4.NullValue = null;
+            this.lastOrderNr.DefaultCellStyle = dataGridViewCellStyle4;
+            this.lastOrderNr.FillWeight = 7.793834F;
+            this.lastOrderNr.HeaderText = "Nr.";
+            this.lastOrderNr.MaxInputLength = 3;
+            this.lastOrderNr.Name = "lastOrderNr";
             // 
-            // labelSum
+            // lastOrderName
             // 
-            this.labelSum.AutoSize = true;
-            this.labelSum.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
-            this.labelSum.ForeColor = System.Drawing.Color.Yellow;
-            this.labelSum.Location = new System.Drawing.Point(1054, 533);
-            this.labelSum.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.labelSum.Name = "labelSum";
-            this.labelSum.Size = new System.Drawing.Size(87, 36);
-            this.labelSum.TabIndex = 19;
-            this.labelSum.Text = "Sum:";
+            this.lastOrderName.FillWeight = 12F;
+            this.lastOrderName.HeaderText = "Bez";
+            this.lastOrderName.MaxInputLength = 100;
+            this.lastOrderName.MinimumWidth = 10;
+            this.lastOrderName.Name = "lastOrderName";
             // 
-            // labelSumValue
+            // lastOrderSize
             // 
-            this.labelSumValue.AutoSize = true;
-            this.labelSumValue.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
-            this.labelSumValue.ForeColor = System.Drawing.Color.Lime;
-            this.labelSumValue.Location = new System.Drawing.Point(1145, 533);
-            this.labelSumValue.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.labelSumValue.Name = "labelSumValue";
-            this.labelSumValue.Size = new System.Drawing.Size(78, 36);
-            this.labelSumValue.TabIndex = 20;
-            this.labelSumValue.Text = "0.00";
+            this.lastOrderSize.FillWeight = 7.793834F;
+            this.lastOrderSize.HeaderText = "S/J";
+            this.lastOrderSize.MaxInputLength = 50;
+            this.lastOrderSize.Name = "lastOrderSize";
             // 
-            // labelCountValue
+            // lastOrderExtra
             // 
-            this.labelCountValue.AutoSize = true;
-            this.labelCountValue.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
-            this.labelCountValue.ForeColor = System.Drawing.Color.Lime;
-            this.labelCountValue.Location = new System.Drawing.Point(864, 534);
-            this.labelCountValue.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.labelCountValue.Name = "labelCountValue";
-            this.labelCountValue.Size = new System.Drawing.Size(33, 36);
-            this.labelCountValue.TabIndex = 21;
-            this.labelCountValue.Text = "0";
+            dataGridViewCellStyle5.Format = "N0";
+            this.lastOrderExtra.DefaultCellStyle = dataGridViewCellStyle5;
+            this.lastOrderExtra.FillWeight = 18F;
+            this.lastOrderExtra.HeaderText = "Extra";
+            this.lastOrderExtra.MaxInputLength = 100;
+            this.lastOrderExtra.MinimumWidth = 100;
+            this.lastOrderExtra.Name = "lastOrderExtra";
             // 
-            // textBoxDiscount
+            // lastOrderPrice
             // 
-            this.textBoxDiscount.BackColor = System.Drawing.Color.MediumBlue;
-            this.textBoxDiscount.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBoxDiscount.Cursor = System.Windows.Forms.Cursors.IBeam;
-            this.textBoxDiscount.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBoxDiscount.ForeColor = System.Drawing.Color.Lime;
-            this.textBoxDiscount.Location = new System.Drawing.Point(465, 536);
-            this.textBoxDiscount.Margin = new System.Windows.Forms.Padding(2);
-            this.textBoxDiscount.Name = "textBoxDiscount";
-            this.textBoxDiscount.Size = new System.Drawing.Size(60, 34);
-            this.textBoxDiscount.TabIndex = 22;
-            this.textBoxDiscount.Text = "0";
-            this.textBoxDiscount.TextChanged += new System.EventHandler(this.textBoxDiscount_TextChanged);
-            // 
-            // labelLastDiscountValue
-            // 
-            this.labelLastDiscountValue.AutoSize = true;
-            this.labelLastDiscountValue.Font = new System.Drawing.Font("Microsoft Sans Serif", 22F, System.Drawing.FontStyle.Bold);
-            this.labelLastDiscountValue.ForeColor = System.Drawing.Color.Red;
-            this.labelLastDiscountValue.Location = new System.Drawing.Point(534, 533);
-            this.labelLastDiscountValue.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.labelLastDiscountValue.Name = "labelLastDiscountValue";
-            this.labelLastDiscountValue.Size = new System.Drawing.Size(96, 36);
-            this.labelLastDiscountValue.TabIndex = 23;
-            this.labelLastDiscountValue.Text = "€0.00";
+            dataGridViewCellStyle6.Format = "N2";
+            dataGridViewCellStyle6.NullValue = null;
+            this.lastOrderPrice.DefaultCellStyle = dataGridViewCellStyle6;
+            this.lastOrderPrice.FillWeight = 7.793834F;
+            this.lastOrderPrice.HeaderText = "Preis";
+            this.lastOrderPrice.MaxInputLength = 10;
+            this.lastOrderPrice.Name = "lastOrderPrice";
             // 
             // Form1
             // 
@@ -911,12 +913,6 @@ namespace TestAddIn
         private Label labelPRValue;
         private Label label8;
         private Label label9;
-        private DataGridViewTextBoxColumn lastOrderAnz;
-        private DataGridViewTextBoxColumn lastOrderNr;
-        private DataGridViewTextBoxColumn lastOrderName;
-        private DataGridViewTextBoxColumn lastOrderSize;
-        private DataGridViewTextBoxColumn lastOrderExtra;
-        private DataGridViewTextBoxColumn lastOrderPrice;
         private Label label10;
         private Label labelLastDiscountValue;
         private TextBox textBoxDiscount;
@@ -925,6 +921,12 @@ namespace TestAddIn
         private Label labelSum;
         private Label labelCount;
         private Label labelRabbat;
+        private DataGridViewTextBoxColumn lastOrderAnz;
+        private DataGridViewTextBoxColumn lastOrderNr;
+        private DataGridViewTextBoxColumn lastOrderName;
+        private DataGridViewTextBoxColumn lastOrderSize;
+        private DataGridViewTextBoxColumn lastOrderExtra;
+        private DataGridViewTextBoxColumn lastOrderPrice;
     }
 
     public class CreateOrderForm : UserControl
