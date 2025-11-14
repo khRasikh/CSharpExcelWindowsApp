@@ -196,7 +196,7 @@ namespace TestAddIn
         }
 
         private void LastOrderSize_KeyPress(object sender, KeyPressEventArgs e)
-        { 
+        {
             if (lastOrdersTable.CurrentCell == null) return;
 
             var dgv = lastOrdersTable;
@@ -290,7 +290,7 @@ namespace TestAddIn
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            var dgv = lastOrdersTable; 
+            var dgv = lastOrdersTable;
             bool gridHasFocus =
                 dgv != null &&
                 (dgv.Focused || (dgv.EditingControl != null && dgv.EditingControl.Focused));
@@ -573,11 +573,11 @@ namespace TestAddIn
                 PrintOrder(lastOrdersTable, customer); // pass your customer and DGV
                 return true;
             }
- 
+
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
-       
+
         //TODO> update this vlue 
         private void PrintOrder(DataGridView dgv, Customer customer)
         {
@@ -1071,7 +1071,7 @@ namespace TestAddIn
             string line = $"{knr.Text}\t{name.Text}\t{phone.Text}\t{str.Text}\t{ort.Text}\t{bemerkung}\t{phone.Text}\t{seit}\t{mal}\t{dm}\t{letzte}\t{rabatt}";
             string path = "customers.txt";
 
-             
+
             try
             {
                 // Check if the KNR already exists in the file
@@ -1137,7 +1137,7 @@ namespace TestAddIn
         private void search_TextChanged(object sender, EventArgs e)
         {
             // You can leave this empty or handle other search-related functionality here
-            
+
         }
 
         private void label4_Click(object sender, EventArgs e)
@@ -1206,7 +1206,7 @@ namespace TestAddIn
                 .Select(g => g.First())
                 .ToList();
 
-            
+
         }
         private int FindStreetNumberIndex(string street)
         {
@@ -1360,7 +1360,8 @@ namespace TestAddIn
                         }
 
                     }
-                } else if (e.KeyCode == Keys.Escape)
+                }
+                else if (e.KeyCode == Keys.Escape)
                 {
                     customerListBox.Visible = false;
                     e.Handled = true;
@@ -1469,7 +1470,7 @@ namespace TestAddIn
         {
             UpdateTotals();
         }
-        
+
         private void change_kasset(object sender, KeyEventArgs e)
         {
             if (e.Control && (e.KeyCode == Keys.NumPad1 || e.KeyCode == Keys.D1))
@@ -1544,6 +1545,12 @@ namespace TestAddIn
 
             // Reset totals
             UpdateTotals();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            FormDatabaseManager f = new FormDatabaseManager();
+            f.ShowDialog(); // modal popup
         }
 
     }

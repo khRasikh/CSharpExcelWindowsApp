@@ -235,7 +235,23 @@ namespace TestAddIn.orders
         }
 
 
+        public static void DeleteOrder(string knr, string anz, string nr, string bez)
+        {
+            var lines = File.ReadAllLines("orders.txt").ToList();
 
+            lines = lines.Where(line =>
+            {
+                var parts = line.Split('\t');
+                if (parts.Length < 7) return true;
 
+                // Compare exact row
+                return !(parts[0] == knr &&
+                         parts[1] == anz &&
+                         parts[2] == nr &&
+                         parts[3] == bez);
+            }).ToList();
+
+            File.WriteAllLines("orders.txt", lines);
+        }
     }
 }

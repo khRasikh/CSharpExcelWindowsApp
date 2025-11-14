@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace TestAddIn.extras
 {
@@ -87,5 +88,20 @@ namespace TestAddIn.extras
         {
             return _extras;
         }
+
+        public static List<dynamic> GetAll()
+        {
+            return _extras.Select(x => new
+            {
+                Id = x.id,
+                Code = x.id,             // Code = id (your JSON structure has no separate "code")
+                Name = x.name,
+                SinglPreis = x.SinglPreis,
+                JumboPreis = x.JumboPreis,
+                FamilyPreis = x.FamilyPreis,
+                PartyPreis = x.PartyPreis
+            }).ToList<dynamic>();
+        }
+
     }
 }
