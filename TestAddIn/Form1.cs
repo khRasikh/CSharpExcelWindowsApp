@@ -60,7 +60,7 @@ namespace TestAddIn
             // Load orders file as a db
             OrdersManager.LoadOrders("orders.txt");
             LoadOrdersForCustomer(this.knr.Text);
-            
+
             // lastOrdersTable cell navigation 
             /*override method used ProcessCmdKey*/
 
@@ -111,7 +111,7 @@ namespace TestAddIn
         {
             SelectCustomerFromPopup();
         }
-         
+
 
         private void SelectCustomerFromPopup()
         {
@@ -196,7 +196,7 @@ namespace TestAddIn
         }
 
         private void LastOrderSize_KeyPress(object sender, KeyPressEventArgs e)
-        {
+        { 
             if (lastOrdersTable.CurrentCell == null) return;
 
             var dgv = lastOrdersTable;
@@ -206,7 +206,7 @@ namespace TestAddIn
             var nrCell = dgv.Rows[rowIndex].Cells["lastOrderNr"];
             var priceCell = dgv.Rows[rowIndex].Cells["lastOrderPrice"];
             var sizeCell = dgv.Rows[rowIndex].Cells["lastOrderSize"];
-           
+
             string articlID = nrCell.Value?.ToString() ?? "";
             var article = articles.FirstOrDefault(a => a.CompNum == articlID);
 
@@ -218,7 +218,7 @@ namespace TestAddIn
                     priceCell.Value = Convert.ToDecimal(article.SinglPreis) * Convert.ToDecimal(anzCell.Value);
                     break;
                 case 'J':
-                    priceCell.Value = Convert.ToDecimal(article.JumboPreis) * Convert.ToDecimal(anzCell.Value); 
+                    priceCell.Value = Convert.ToDecimal(article.JumboPreis) * Convert.ToDecimal(anzCell.Value);
                     break;
                 case 'F':
                     priceCell.Value = Convert.ToDecimal(article.FamilyPreis) * Convert.ToDecimal(anzCell.Value);
@@ -230,7 +230,7 @@ namespace TestAddIn
                     break;
             }
         }
-         
+
 
         private void LastOrdersTable_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
@@ -265,6 +265,7 @@ namespace TestAddIn
 
         private void LastOrderSize_TextChanged(object sender, EventArgs e)
         {
+
             if (!(sender is TextBox tb)) return;
 
             // Only enforce uppercase / single letter if current cell is lastOrderSize
@@ -280,6 +281,7 @@ namespace TestAddIn
 
         private void Tb_GotFocus(object sender, EventArgs e)
         {
+
             if (sender is TextBox tb)
             {
                 tools.ApplyCustomCaret(tb);
@@ -288,8 +290,7 @@ namespace TestAddIn
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            var dgv = lastOrdersTable;
-
+            var dgv = lastOrdersTable; 
             bool gridHasFocus =
                 dgv != null &&
                 (dgv.Focused || (dgv.EditingControl != null && dgv.EditingControl.Focused));
@@ -313,15 +314,15 @@ namespace TestAddIn
                 int colLastOrderSize = dgv.Columns.Contains("lastOrderSize") ? dgv.Columns["lastOrderSize"].Index : -1;
                 int colLastOrderExtra = dgv.Columns.Contains("lastOrderExtra") ? dgv.Columns["lastOrderExtra"].Index : dgv.Columns.Count - 1;
                 //case 1: Enter on lastOrderAnz
-                if(curCol == colLastOrderAnz)
+                if (curCol == colLastOrderAnz)
                 {
                     dgv.EndEdit();
                     dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
 
                     string anzID = dgv.Rows[curRow].Cells["lastOrderAnz"].Value?.ToString()?.Trim() ?? "";
                     var anz = articles.FirstOrDefault(a => a.CompNum == anzID);
-                   
-                    if (anzID=="")
+
+                    if (anzID == "")
                     {
                         dgv.Rows[curRow].Cells["lastOrderAnz"].Value = 1;
                     }
@@ -484,7 +485,7 @@ namespace TestAddIn
             }
             else if (key == Keys.F6)
             {
-                this.textBoxDiscount.Focus(); 
+                this.textBoxDiscount.Focus();
                 return true;
             }
             else if (key == Keys.F2)
@@ -572,10 +573,11 @@ namespace TestAddIn
                 PrintOrder(lastOrdersTable, customer); // pass your customer and DGV
                 return true;
             }
-
+ 
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
+       
         //TODO> update this vlue 
         private void PrintOrder(DataGridView dgv, Customer customer)
         {
@@ -805,6 +807,7 @@ namespace TestAddIn
                 // MessageBoxIcon.Information);
 
                 LoadOrdersForCustomer(knr.Text);
+                Customer.LoadCustomers("customers.txt");
             }
             catch (Exception ex)
             {
@@ -838,7 +841,7 @@ namespace TestAddIn
                 .Where(o => o.KNr.Trim() == customerId.Trim())
                 .ToList();
 
-            lastOrdersTable.Rows.Clear(); 
+            lastOrdersTable.Rows.Clear();
 
             foreach (var order in filteredOrders)
             {
@@ -869,12 +872,15 @@ namespace TestAddIn
 
         private void search_KeyDown(object sender, KeyEventArgs e)
         {
+            // change kasset 
+            change_kasset(sender, e);
+
             if (e.KeyCode == Keys.Enter)
             {
                 var input = search.Text.Trim();
                 if (string.IsNullOrEmpty(input)) return;
 
-                 if (input == "0")
+                if (input == "0")
                 {
                     search.Text = "Abholer"; // default value
                     this.knr.Text = "";
@@ -980,7 +986,7 @@ namespace TestAddIn
                         searchListBox.Visible = true;
                         searchListBox.Focus();
                     }
-                    
+
                     else
                     {
                         MessageBox.Show("No matching addresses found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1010,8 +1016,10 @@ namespace TestAddIn
                 {
                     // Last field - submit data
                     SaveCustomerToFile();
+                    Customer.LoadCustomers("customers.txt");
                 }
             }
+            change_kasset(sender, e);
         }
 
         private void SaveCustomerToFile()
@@ -1080,6 +1088,7 @@ namespace TestAddIn
                             File.WriteAllLines(path, existingLines); // save changes
                             //focus on the first cell of lastOrdersTable 
                             OrdersManager.FocusCursorOnAnz(lastOrdersTable);
+                            Customer.LoadCustomers("customers.txt");
                             return;
                         }
                     }
@@ -1087,13 +1096,14 @@ namespace TestAddIn
 
                 // add the record to file 
                 File.AppendAllText(path, line + Environment.NewLine);
-                MessageBox.Show("Customer saved successfully.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Kunde erfolgreich gespeichert.00", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 /* TODO:
                  * update the last order table by calling 
                  * move cursor on the first input box of CreateOrderForm
                  */
                 OrdersManager.FocusCursorOnAnz(lastOrdersTable);
+                Customer.LoadCustomers("customers.txt");
 
             }
             catch (Exception ex)
@@ -1300,6 +1310,7 @@ namespace TestAddIn
 
         private void str_KeyDown(object sender, KeyEventArgs e)
         {
+            change_kasset(sender, e);
             if (customerListBox.Visible && customerListBox.Items.Count > 0)
             {
                 if (e.KeyCode == Keys.Down)
@@ -1458,14 +1469,28 @@ namespace TestAddIn
         {
             UpdateTotals();
         }
-
+        
+        private void change_kasset(object sender, KeyEventArgs e)
+        {
+            if (e.Control && (e.KeyCode == Keys.NumPad1 || e.KeyCode == Keys.D1))
+            {
+                labelPRValue.Text = "1";
+            }
+            else if (e.Control && (e.KeyCode == Keys.NumPad2 || e.KeyCode == Keys.D2))
+            {
+                labelPRValue.Text = "2";
+            }
+        }
         private void hanle_keys(object sender, KeyEventArgs e)
         {
+            // change kasset
+            change_kasset(sender, e);
+
             // all keys should work 
             var key = e.KeyCode;
             if (key == Keys.F2)
             {
-                extras.Clear();
+                ClearAllStoredData();
                 this.search.Focus();
             }
             else if (key == Keys.F3)
@@ -1492,5 +1517,34 @@ namespace TestAddIn
                 PrintOrder(lastOrdersTable, customer); // pass your customer and DGV
             }
         }
+
+        private void ClearAllStoredData()
+        {
+            // Clear search field
+            search.Text = "";
+
+            // Clear discount fields
+            textBoxDiscount.Text = "0";
+            labelLastDiscountValue.Text = "0";
+            labelSumValue.Text = "€0.00";
+            labelCountValue.Text = "0";
+
+            // Clear extras list
+            extras.Clear();
+
+            // Clear orders table
+            lastOrdersTable.Rows.Clear();
+
+            // Hide popups
+            customerListBox.Visible = false;
+            searchListBox.Visible = false;
+
+            // Clear tags
+            searchListBox.Tag = null;
+
+            // Reset totals
+            UpdateTotals();
+        }
+
     }
 }
