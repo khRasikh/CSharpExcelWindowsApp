@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -28,6 +29,7 @@ namespace TestAddIn
         public Form1()
         {
             InitializeComponent();
+
             // Add ListBox programmatically with professional attributes
             customerListBox = new ListBox
             {
@@ -59,7 +61,7 @@ namespace TestAddIn
             // Load orders file as a db
             OrdersManager.LoadOrders("orders.txt");
             LoadOrdersForCustomer(this.knr.Text);
-            
+
             // lastOrdersTable cell navigation 
             /*override method used ProcessCmdKey*/
 
@@ -75,7 +77,8 @@ namespace TestAddIn
             lastOrdersTable.EditingControlShowing += LastOrdersTable_EditingControlShowing;
 
             // Handle cell edit end to auto-fill "Bez" based on "Nr"
-            articles = Article.LoadArticles("article.json");
+            labelPRValue.Text = "1";
+            LoadArticlesForCurrentKasse();
             lastOrdersTable.CellValueChanged += lastOrdersTable_CellValueChanged;
 
             //handle extra list 
@@ -105,12 +108,19 @@ namespace TestAddIn
             searchListBox.Click += SearchListBox_Click;
 
         }
+        private void LoadArticlesForCurrentKasse()
+        {
+            if (labelPRValue.Text == "2")
+                articles = Article.LoadArticles("article2.json");
+            else
+                articles = Article.LoadArticles("article.json");
+        }
 
         private void SearchListBox_Click(object sender, EventArgs e)
         {
             SelectCustomerFromPopup();
         }
-         
+
 
         private void SelectCustomerFromPopup()
         {
@@ -205,7 +215,7 @@ namespace TestAddIn
             var nrCell = dgv.Rows[rowIndex].Cells["lastOrderNr"];
             var priceCell = dgv.Rows[rowIndex].Cells["lastOrderPrice"];
             var sizeCell = dgv.Rows[rowIndex].Cells["lastOrderSize"];
-           
+
             string articlID = nrCell.Value?.ToString() ?? "";
             var article = articles.FirstOrDefault(a => a.CompNum == articlID);
 
@@ -217,7 +227,7 @@ namespace TestAddIn
                     priceCell.Value = Convert.ToDecimal(article.SinglPreis) * Convert.ToDecimal(anzCell.Value);
                     break;
                 case 'J':
-                    priceCell.Value = Convert.ToDecimal(article.JumboPreis) * Convert.ToDecimal(anzCell.Value); 
+                    priceCell.Value = Convert.ToDecimal(article.JumboPreis) * Convert.ToDecimal(anzCell.Value);
                     break;
                 case 'F':
                     priceCell.Value = Convert.ToDecimal(article.FamilyPreis) * Convert.ToDecimal(anzCell.Value);
@@ -229,7 +239,7 @@ namespace TestAddIn
                     break;
             }
         }
-         
+
 
         private void LastOrdersTable_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
@@ -264,6 +274,7 @@ namespace TestAddIn
 
         private void LastOrderSize_TextChanged(object sender, EventArgs e)
         {
+
             if (!(sender is TextBox tb)) return;
 
             // Only enforce uppercase / single letter if current cell is lastOrderSize
@@ -279,6 +290,7 @@ namespace TestAddIn
 
         private void Tb_GotFocus(object sender, EventArgs e)
         {
+
             if (sender is TextBox tb)
             {
                 tools.ApplyCustomCaret(tb);
@@ -288,7 +300,6 @@ namespace TestAddIn
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             var dgv = lastOrdersTable;
-
             bool gridHasFocus =
                 dgv != null &&
                 (dgv.Focused || (dgv.EditingControl != null && dgv.EditingControl.Focused));
@@ -312,15 +323,15 @@ namespace TestAddIn
                 int colLastOrderSize = dgv.Columns.Contains("lastOrderSize") ? dgv.Columns["lastOrderSize"].Index : -1;
                 int colLastOrderExtra = dgv.Columns.Contains("lastOrderExtra") ? dgv.Columns["lastOrderExtra"].Index : dgv.Columns.Count - 1;
                 //case 1: Enter on lastOrderAnz
-                if(curCol == colLastOrderAnz)
+                if (curCol == colLastOrderAnz)
                 {
                     dgv.EndEdit();
                     dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
 
                     string anzID = dgv.Rows[curRow].Cells["lastOrderAnz"].Value?.ToString()?.Trim() ?? "";
                     var anz = articles.FirstOrDefault(a => a.CompNum == anzID);
-                   
-                    if (anzID=="")
+
+                    if (anzID == "")
                     {
                         dgv.Rows[curRow].Cells["lastOrderAnz"].Value = 1;
                     }
@@ -344,9 +355,11 @@ namespace TestAddIn
                     }
                     else
                     {
-                        dgv.Rows[curRow].Cells["lastOrderName"].Value = "";
+                        //dgv.Rows[curRow].Cells["lastOrderName"].Value = "";
                         MessageBox.Show("Artikel nicht gefunden. Bitte prüfen!", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        dgv.CurrentCell = dgv.Rows[curRow].Cells["lastOrderNr"];
+                        //dgv.CurrentCell = dgv.Rows[curRow].Cells["lastOrderNr"];
+                        //dgv.Rows[curRow].Cells["lastOrderName"].Value = "";
+                        //dgv.CurrentCell = dgv.Rows[curRow].Cells["lastOrderBez"];
                     }
 
                     dgv.BeginEdit(true);
@@ -372,64 +385,96 @@ namespace TestAddIn
                     dgv.EndEdit();
                     dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
 
-                    // Get entered value from LastOrderExtra cell
                     string extraInput = dgv.Rows[curRow].Cells[colLastOrderExtra].Value?.ToString()?.Trim();
                     string sizeText = dgv.Rows[curRow].Cells["lastOrderSize"].Value?.ToString()?.Trim();
                     char sizeCode = 'S';
                     if (!string.IsNullOrEmpty(sizeText))
                         sizeCode = char.ToUpper(sizeText[0]);
-                    //    MessageBox.Show("Extra value:" + extraInput + "SizeCode:"+ sizeCode, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
                     if (!string.IsNullOrEmpty(extraInput))
                     {
-                        // Try to parse extra ID
-                        if (int.TryParse(extraInput, out int extraId))
+                        try
                         {
-                            var extraItem = TestAddIn.extras.ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
-                            // Get the old extra ID stored in the cell (if any)
-                            var oldExtraId = dgv.Rows[curRow].Cells[colLastOrderExtra].Tag as int?;
+                            string expr = extraInput.Replace(" ", "");
 
-                            if (extraItem != null)
+                            // Ensure starts with a '+' or '-'
+                            if (!expr.StartsWith("+") && !expr.StartsWith("-"))
+                                expr = "+" + expr;
+
+                            // Match all signed IDs (e.g., +10, -2, +3)
+                            var matches = System.Text.RegularExpressions.Regex.Matches(expr, @"[+-]\d+");
+
+                            decimal total = 0;
+                            var oldExtraIds = new List<int>();
+                            var newExtraIds = new List<int>();
+
+                            foreach (System.Text.RegularExpressions.Match match in matches)
                             {
+                                string token = match.Value;
+                                bool isPositive = token.StartsWith("+");
+                                int id = int.Parse(token.Substring(1)); // remove +/-
 
-                                // If an old extra exists and is different from the new one, remove it first
-                                if (oldExtraId.HasValue && oldExtraId.Value != extraItem.Id)
+                                var extraItem = TestAddIn.extras.ExtrasManager.GetExtraByIdCode(id, sizeCode);
+
+                                if (extraItem != null)
                                 {
-                                    var oldExtra = extras.FirstOrDefault(e => e.Id == oldExtraId.Value);
-                                    if (oldExtra != null)
-                                        extras.Remove(oldExtra);
-                                }
+                                    // Store for tracking
+                                    newExtraIds.Add(extraItem.Id);
 
-                                // Check if the new extra already exists in the list
-                                var existingExtra = extras.FirstOrDefault(e => e.Id == extraItem.Id);
-                                if (existingExtra == null)
+                                    // Add or subtract based on sign
+                                    if (isPositive)
+                                        total += extraItem.Price; // assuming your extraItem has Value or Amount
+                                    else
+                                        total -= extraItem.Price;
+                                }
+                                else
                                 {
-                                    extras.Add(extraItem); // Add new extra only if not already added
+                                    MessageBox.Show($"Extra ID {id} not found!", "Warning",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                 }
-
-                                // Store the current ID in the cell's Tag for tracking future changes
-                                dgv.Rows[curRow].Cells[colLastOrderExtra].Tag = extraItem.Id;
                             }
-                            else
+
+                            // Replace old extras with current ones
+                            var oldExtraId = dgv.Rows[curRow].Cells[colLastOrderExtra].Tag as int?;
+                            if (oldExtraId.HasValue)
                             {
                                 var oldExtra = extras.FirstOrDefault(e => e.Id == oldExtraId.Value);
                                 if (oldExtra != null)
                                     extras.Remove(oldExtra);
-                                dgv.Rows[curRow].Cells["lastOrderExtra"].Value = 0;
                             }
+
+                            // Add any new extras that aren't already added
+                            foreach (int id in newExtraIds)
+                            {
+                                if (!extras.Any(e => e.Id == id))
+                                {
+                                    var extraItem = TestAddIn.extras.ExtrasManager.GetExtraByIdCode(id, sizeCode);
+                                    if (extraItem != null)
+                                        extras.Add(extraItem);
+                                }
+                            }
+
+                            // Store the text input and tag it with the new IDs
+                            dgv.Rows[curRow].Cells[colLastOrderExtra].Value = extraInput;
+                            dgv.Rows[curRow].Cells[colLastOrderExtra].Tag = newExtraIds.LastOrDefault();
+
+                            // MessageBox.Show(
+                            //$"Expression: {extraInput}\nCalculated Total Value: {total}",
+                            //"Extra Calculation",
+                            //MessageBoxButtons.OK,
+                            //MessageBoxIcon.Information
+                            //);
                         }
-                        else
+                        catch
                         {
-                            // Invalid input → reset
                             dgv.Rows[curRow].Cells["lastOrderExtra"].Value = 0;
-                            MessageBox.Show("Invalid Extra ID!", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            MessageBox.Show("Invalid input!", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         }
                     }
                     else
                     {
-                        // Empty input → reset
                         dgv.Rows[curRow].Cells["lastOrderExtra"].Value = 0;
                     }
-
 
                     // Move to next row, first column
                     int nextRow = curRow + 1;
@@ -443,13 +488,15 @@ namespace TestAddIn
                     dgv.BeginEdit(true);
                     return true;
                 }
+
+
                 // --- Case 3: Other columns → Enter acts like Tab ---
                 SendKeys.Send("{TAB}");
                 return true;
             }
             else if (key == Keys.F6)
             {
-                this.textBoxDiscount.Focus(); 
+                this.textBoxDiscount.Focus();
                 return true;
             }
             else if (key == Keys.F2)
@@ -541,26 +588,25 @@ namespace TestAddIn
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
+
         //TODO> update this vlue 
         private void PrintOrder(DataGridView dgv, Customer customer)
         {
             // Collect order list from DGV
-
             var orderList = new List<dynamic>();
+
             foreach (DataGridViewRow row in dgv.Rows)
             {
                 if (row.IsNewRow) continue;
 
-                // Safely parse total and discount
+                // Parse total and discount safely
                 decimal totalValue = 0;
                 decimal discountValue = 0;
-
                 decimal.TryParse(this.labelSumValue.Text, out totalValue);
                 decimal.TryParse(this.labelLastDiscountValue.Text?.ToString() ?? "0", out discountValue);
 
-                // Get Extra ID as int
-                int extraId = 0;
-                int.TryParse(row.Cells["LastOrderExtra"].Value?.ToString() ?? "0", out extraId);
+                // Read extra input expression (can contain +10-5+2 etc.)
+                string extraInput = row.Cells["LastOrderExtra"].Value?.ToString()?.Trim() ?? "";
 
                 // Get size code as char (first character, uppercase)
                 string sizeStr = row.Cells["lastOrderSize"].Value?.ToString() ?? "";
@@ -568,10 +614,40 @@ namespace TestAddIn
                     ? char.ToUpper(sizeStr[0])
                     : 'S';
 
-                // Get real Extra from your manager
-                var extraObj = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
+                // ✅ Parse multiple extras (like +10-5+2)
+                var extrasList = new List<dynamic>();
+                if (!string.IsNullOrEmpty(extraInput))
+                {
+                    string expr = extraInput.Replace(" ", "");
+                    if (!expr.StartsWith("+") && !expr.StartsWith("-"))
+                        expr = "+" + expr;
 
+                    var matches = System.Text.RegularExpressions.Regex.Matches(expr, @"[+-]\d+");
 
+                    foreach (System.Text.RegularExpressions.Match match in matches)
+                    {
+                        string token = match.Value;
+                        bool isPositive = token.StartsWith("+");
+                        int extraId = int.Parse(token.Substring(1));
+
+                        var extraObj = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
+                        if (extraObj != null)
+                        {
+                            // Add or subtract depending on sign
+                            var extraDisplayName = (isPositive ? "+" : "−") + extraObj.Name;
+                            var extraDisplayPrice = isPositive ? extraObj.Price : -extraObj.Price;
+
+                            extrasList.Add(new
+                            {
+                                id = extraObj.Id,
+                                name = extraDisplayName,
+                                price = extraDisplayPrice
+                            });
+                        }
+                    }
+                }
+
+                // Build order entry
                 var order = new
                 {
                     count = row.Cells["lastOrderAnz"].Value?.ToString() ?? "0",
@@ -579,32 +655,27 @@ namespace TestAddIn
                     name = row.Cells["lastOrderName"].Value?.ToString() ?? "",
                     price = row.Cells["lastOrderPrice"].Value?.ToString() ?? "",
                     size = sizeCode,
-                    extra = new
-                    {
-                        id = extraObj?.Id ?? 0,
-                        name = extraObj?.Name ?? "",
-                        price = extraObj?.Price ?? 0
-                    }
+                    extras = extrasList
                 };
-               
+
                 orderList.Add(order);
             }
 
-            // Build HTML string
+            // --- Build HTML for printing ---
             var sb = new StringBuilder();
             sb.Append("<html><head>");
             sb.Append(@"
-            <style>
-                @page { size: A5; margin: 10mm; }
-                body { font-family: Arial, sans-serif; font-size: 14px; }
-                h2 { font-weight: bold; margin-bottom: 2px; }
-                table { width: 70%; border-collapse: collapse; margin-top: 5px; }
-                th, td { border: 1px padding: 1px 1px; word-break: break-word; }
-                th { font-weight: bold; background-color: #f2f2f2; }
-                td.right { text-align: right; }
-                .totals { margin-top: 5px; text-align: left; font-weight: bold; }
-                .footer { margin-top: 5px; text-align: left; }
-            </style>");
+    <style>
+        @page { size: A5; margin: 10mm; }
+        body { font-family: Arial, sans-serif; font-size: 14px; }
+        h2 { font-weight: bold; margin-bottom: 2px; }
+        table { width: 70%; border-collapse: collapse; margin-top: 5px; }
+        th, td { padding: 2px 4px; word-break: break-word; }
+        th { font-weight: bold; background-color: #f2f2f2; }
+        td.right { text-align: right; }
+        .totals { margin-top: 5px; text-align: left; font-weight: bold; }
+        .footer { margin-top: 5px; text-align: left; }
+    </style>");
             sb.Append("</head><body>");
 
             // Header
@@ -612,41 +683,63 @@ namespace TestAddIn
             sb.Append($"<div><strong>KNr:</strong> {customer.KNr} - <strong>Name:</strong> {customer.Name} - <strong>Tel:</strong> {customer.Tel}</div>");
             sb.Append($"<div><strong>Add:</strong> {customer.Str}, {customer.Ort}</div>");
 
-            // Table
+            // Table header
             sb.Append("<table><thead><tr>");
             sb.Append("<th>Anz</th><th>Nr.</th><th>Bez.</th><th>Size</th><th>Preise</th>");
             sb.Append("</tr></thead><tbody>");
 
+            // Table rows
             foreach (var order in orderList)
             {
-                sb.Append($"<tr><td>{order.count}X</td><td>{order.id}</td><td>{order.name}</td><td>{order.size}</td><td class='right'>€{order.price}</td></tr>");
+                sb.Append($"<tr><td>{order.count}x</td><td>{order.id}</td><td>{order.name}</td><td>{order.size}</td><td class='right'>€{order.price}</td></tr>");
 
-                if (Convert.ToInt16(order.extra.id) != 0)
+                // ✅ Print all extras under the item
+                foreach (var extra in order.extras)
                 {
-                    sb.Append($"<tr><td>-</td><td>{order.extra.id}</td><td>{order.extra.name}</td><td>-</td><td class='right'>€{order.extra.price}</td></tr>");
+                    sb.Append($"<tr><td></td><td>{extra.id}</td><td>{extra.name}</td><td>-</td><td class='right'>€{extra.price:F2}</td></tr>");
                 }
             }
+
             sb.Append("</tbody></table>");
 
-            // Totals aligned right
-            decimal sum = 0, discount = 0;
-            decimal.TryParse(this.labelSumValue.Text, out sum);
-            decimal.TryParse(this.labelLastDiscountValue.Text, out discount);
+            // Totals
+            decimal brutto = 0;
+
+            // Sum base prices (as shown in the table) + signed extras per row
+            foreach (var order in orderList)
+            {
+                if (decimal.TryParse(order.price.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal basePrice))
+                    brutto += basePrice;
+
+                foreach (var extra in order.extras)
+                    brutto += Convert.ToDecimal(extra.price, CultureInfo.InvariantCulture); // extras already signed (+/-)
+            }
+
+            // Parse Rabatt safely and make it a positive deduction
+            string rabText = this.labelLastDiscountValue.Text ?? "0";
+            // keep digits, comma, dot, and minus for parsing, then normalize comma→dot
+            rabText = Regex.Replace(rabText, @"[^\d\-,\.]", "").Replace(',', '.');
+
+            decimal rabatt = 0;
+            decimal.TryParse(rabText, NumberStyles.Any, CultureInfo.InvariantCulture, out rabatt);
+            rabatt = Math.Abs(rabatt); // ← critical: always treat as a deduction
+
+            decimal netto = brutto - rabatt;
+            if (netto < 0) netto = 0; // optional safety
 
             sb.Append("<div class='totals'>");
             sb.Append("<table style='width: 70%; border: none;'>");
-            sb.Append("<tr><td style='font-weight: bold;'>Brutto:</td><td style='text-align: right; font-weight: bold; '>" + this.labelSumValue.Text + "</td></tr>");
-            sb.Append("<tr><td style='font-weight: bold;'>Rabbat:</td><td style='text-align: right; font-weight: bold;'>" + this.labelLastDiscountValue.Text + "</td></tr>");
-            sb.Append("<tr><td style='font-weight: bold;'>Netto:</td><td style='text-align: right; font-weight: bold;'>" + this.labelSumValue.Text + "</td></tr>");
+            sb.Append($"<tr><td style='font-weight: bold;'>Brutto:</td><td style='text-align: right; font-weight: bold;'>€{brutto:F2}</td></tr>");
+            sb.Append($"<tr><td style='font-weight: bold;'>Rabatt:</td><td style='text-align: right; font-weight: bold;'>€{rabatt:F2}</td></tr>");
+            sb.Append($"<tr><td style='font-weight: bold;'>Netto:</td><td style='text-align: right; font-weight: bold;'>€{netto:F2}</td></tr>");
             sb.Append("</table>");
             sb.Append("</div>");
 
             // Footer
             sb.Append("<div class='footer'>Vielen Dank für Ihre Bestellung</div>");
-
             sb.Append("</body></html>");
 
-            // Print using WebBrowser
+            // --- Print using WebBrowser ---
             var wb = new WebBrowser
             {
                 DocumentText = sb.ToString()
@@ -655,9 +748,9 @@ namespace TestAddIn
             {
                 wb.Print();
             };
-            // Keep WebBrowser alive
             this.Controls.Add(wb);
         }
+
 
 
         private void OrderTextBox_KeyDown(object sender, KeyEventArgs e)
@@ -719,12 +812,13 @@ namespace TestAddIn
                 // 👉 einmal speichern mit allen Orders für diese KNr
                 OrdersManager.SaveOrders("orders.txt", knr.Text, ordersForKnr);
 
-                MessageBox.Show("Alle Bestellungen aus der Tabelle wurden erfolgreich gespeichert.",
-                                "Success",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
+                // MessageBox.Show("Alle Bestellungen aus der Tabelle wurden erfolgreich gespeichert.",
+                //"Success",
+                // MessageBoxButtons.OK,
+                // MessageBoxIcon.Information);
 
                 LoadOrdersForCustomer(knr.Text);
+                Customer.LoadCustomers("customers.txt");
             }
             catch (Exception ex)
             {
@@ -758,7 +852,7 @@ namespace TestAddIn
                 .Where(o => o.KNr.Trim() == customerId.Trim())
                 .ToList();
 
-            lastOrdersTable.Rows.Clear(); 
+            lastOrdersTable.Rows.Clear();
 
             foreach (var order in filteredOrders)
             {
@@ -789,11 +883,21 @@ namespace TestAddIn
 
         private void search_KeyDown(object sender, KeyEventArgs e)
         {
+            // change kasset 
+            change_kasset(sender, e);
+
             if (e.KeyCode == Keys.Enter)
             {
                 var input = search.Text.Trim();
                 if (string.IsNullOrEmpty(input)) return;
 
+                if (input == "0")
+                {
+                    search.Text = "Abholer"; // default value
+                    this.knr.Text = "";
+                    this.lastOrdersTable.Focus();
+                    return;
+                }
                 // Check if the input is numeric → treat it as KNr
                 if (int.TryParse(input, out _))
                 {
@@ -893,6 +997,7 @@ namespace TestAddIn
                         searchListBox.Visible = true;
                         searchListBox.Focus();
                     }
+
                     else
                     {
                         MessageBox.Show("No matching addresses found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -922,8 +1027,10 @@ namespace TestAddIn
                 {
                     // Last field - submit data
                     SaveCustomerToFile();
+                    Customer.LoadCustomers("customers.txt");
                 }
             }
+            change_kasset(sender, e);
         }
 
         private void SaveCustomerToFile()
@@ -975,7 +1082,7 @@ namespace TestAddIn
             string line = $"{knr.Text}\t{name.Text}\t{phone.Text}\t{str.Text}\t{ort.Text}\t{bemerkung}\t{phone.Text}\t{seit}\t{mal}\t{dm}\t{letzte}\t{rabatt}";
             string path = "customers.txt";
 
-             
+
             try
             {
                 // Check if the KNR already exists in the file
@@ -992,6 +1099,7 @@ namespace TestAddIn
                             File.WriteAllLines(path, existingLines); // save changes
                             //focus on the first cell of lastOrdersTable 
                             OrdersManager.FocusCursorOnAnz(lastOrdersTable);
+                            Customer.LoadCustomers("customers.txt");
                             return;
                         }
                     }
@@ -999,13 +1107,14 @@ namespace TestAddIn
 
                 // add the record to file 
                 File.AppendAllText(path, line + Environment.NewLine);
-                MessageBox.Show("Customer saved successfully.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Kunde erfolgreich gespeichert.00", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 /* TODO:
                  * update the last order table by calling 
                  * move cursor on the first input box of CreateOrderForm
                  */
                 OrdersManager.FocusCursorOnAnz(lastOrdersTable);
+                Customer.LoadCustomers("customers.txt");
 
             }
             catch (Exception ex)
@@ -1039,6 +1148,7 @@ namespace TestAddIn
         private void search_TextChanged(object sender, EventArgs e)
         {
             // You can leave this empty or handle other search-related functionality here
+
         }
 
         private void label4_Click(object sender, EventArgs e)
@@ -1107,7 +1217,7 @@ namespace TestAddIn
                 .Select(g => g.First())
                 .ToList();
 
-            
+
         }
         private int FindStreetNumberIndex(string street)
         {
@@ -1211,6 +1321,7 @@ namespace TestAddIn
 
         private void str_KeyDown(object sender, KeyEventArgs e)
         {
+            change_kasset(sender, e);
             if (customerListBox.Visible && customerListBox.Items.Count > 0)
             {
                 if (e.KeyCode == Keys.Down)
@@ -1260,7 +1371,8 @@ namespace TestAddIn
                         }
 
                     }
-                } else if (e.KeyCode == Keys.Escape)
+                }
+                else if (e.KeyCode == Keys.Escape)
                 {
                     customerListBox.Visible = false;
                     e.Handled = true;
@@ -1297,7 +1409,7 @@ namespace TestAddIn
                 decimal totalExtra = 0;
                 decimal lastTotalDiscountValue = 0;
 
-                // Get discount from TextBox (user can change it)
+                // Get discount percentage
                 int lastDiscountPercentage = 0;
                 int.TryParse(textBoxDiscount.Text.Trim(), out lastDiscountPercentage);
 
@@ -1305,39 +1417,188 @@ namespace TestAddIn
                 {
                     if (row.IsNewRow) continue;
 
-                    // totalCount
+                    // --- Count items ---
                     if (int.TryParse(row.Cells["lastOrderAnz"].Value?.ToString(), out int anz))
                         totalCount += anz;
 
-                    // totalSum and extra
-                    decimal price = 0;
-                    decimal.TryParse(row.Cells["lastOrderPrice"].Value?.ToString(), out price);
+                    // --- Base price ---
+                    if (decimal.TryParse(row.Cells["lastOrderPrice"].Value?.ToString(), out decimal basePrice))
+                        totalSum += basePrice;
 
-                    totalSum += price;
+                    // --- Extras per row ---
+                    string extraInput = row.Cells["LastOrderExtra"].Value?.ToString()?.Trim() ?? "";
+                    string sizeStr = row.Cells["lastOrderSize"].Value?.ToString() ?? "";
+                    char sizeCode = !string.IsNullOrWhiteSpace(sizeStr)
+                        ? char.ToUpper(sizeStr[0])
+                        : 'S';
+
+                    if (!string.IsNullOrEmpty(extraInput))
+                    {
+                        string expr = extraInput.Replace(" ", "");
+                        if (!expr.StartsWith("+") && !expr.StartsWith("-"))
+                            expr = "+" + expr;
+
+                        var matches = System.Text.RegularExpressions.Regex.Matches(expr, @"[+-]\d+");
+
+                        foreach (System.Text.RegularExpressions.Match match in matches)
+                        {
+                            string token = match.Value;
+                            bool isPositive = token.StartsWith("+");
+                            int extraId = int.Parse(token.Substring(1));
+
+                            var extraObj = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
+                            if (extraObj != null)
+                            {
+                                if (isPositive)
+                                    totalExtra += (decimal)extraObj.Price;
+                                else
+                                    totalExtra -= (decimal)extraObj.Price;
+                            }
+                        }
+                    }
                 }
 
-                if (extras.Count > 0)
-                {
-                    totalExtra = extras.Sum(e => e.Price);
-                }
-
-                // Calculate discount amount
+                // --- Calculate discount ---
                 lastTotalDiscountValue = ((totalSum + totalExtra) * lastDiscountPercentage) / 100;
 
-                // Update labels
+                // --- Update labels ---
                 labelCountValue.Text = totalCount.ToString();
-                labelSumValue.Text = "€" + ((totalSum + totalExtra) - lastTotalDiscountValue).ToString("F2");
-                labelLastDiscountValue.Text = $"(- €{lastTotalDiscountValue:F2})";
+
+                decimal brutto = totalSum + totalExtra;
+                decimal netto = brutto - lastTotalDiscountValue;
+
+                labelSumValue.Text = $"€{netto:F2}";
+                labelLastDiscountValue.Text = $"(- €{Math.Abs(lastTotalDiscountValue):F2})";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error calculating totals: " + ex.Message);
+                MessageBox.Show("Error calculating totals: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
 
         private void textBoxDiscount_TextChanged(object sender, EventArgs e)
         {
             UpdateTotals();
+        }
+
+        private void change_kasset(object sender, KeyEventArgs e)
+        {
+            if (e.Control && (e.KeyCode == Keys.NumPad1 || e.KeyCode == Keys.D1))
+            {
+                var result = MessageBox.Show(
+                    "Möchten Sie wirklich zur Kasse 1 wechseln? Y/N",
+                    "Bestätigen",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    labelPRValue.Text = "1";
+                    LoadArticlesForCurrentKasse();
+                }
+            }
+            else if (e.Control && (e.KeyCode == Keys.NumPad2 || e.KeyCode == Keys.D2))
+            {
+                var result = MessageBox.Show(
+                    "Möchten Sie wirklich zur Kasse 2 wechseln? Y/N",
+                    "Bestätigen",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    labelPRValue.Text = "2";
+                    LoadArticlesForCurrentKasse();
+                }
+            }
+        }
+
+
+        private void hanle_keys(object sender, KeyEventArgs e)
+        {
+            // change kasset
+            change_kasset(sender, e);
+
+            // all keys should work 
+            var key = e.KeyCode;
+            if (key == Keys.F2)
+            {
+                ClearAllStoredData();
+                this.search.Focus();
+            }
+            else if (key == Keys.F3)
+            {
+                extras.Clear();
+                this.name.Focus();
+            }
+            else if (key == Keys.Back)
+            {
+                this.textBoxDiscount.Clear();
+                this.textBoxDiscount.Text = "0";
+                this.labelLastDiscountValue.Text = "0";
+                this.extras.Clear();
+                this.lastOrdersTable.Focus();
+            }
+            else if (key == Keys.F1)
+            {
+                extras.Clear();
+                this.lastOrdersTable.Focus();
+            }
+            else if (key == Keys.F9)
+            {
+                var customer = Customer.FindByKNr(this.knr.Text);
+                PrintOrder(lastOrdersTable, customer); // pass your customer and DGV
+            }
+        }
+
+        private void ClearAllStoredData()
+        {
+            // Clear search field
+            search.Text = "";
+
+            // Clear discount fields
+            textBoxDiscount.Text = "0";
+            labelLastDiscountValue.Text = "0";
+            labelSumValue.Text = "€0.00";
+            labelCountValue.Text = "0";
+
+            // Clear extras list
+            extras.Clear();
+
+            // Clear orders table
+            lastOrdersTable.Rows.Clear();
+
+            // Hide popups
+            customerListBox.Visible = false;
+            searchListBox.Visible = false;
+
+            // Clear tags
+            searchListBox.Tag = null;
+
+            // Reset totals
+            UpdateTotals();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            FormDatabaseManager f = new FormDatabaseManager();
+            f.ShowDialog(); // modal popup
+        }
+
+        private void mouse_enter(object sender, EventArgs e)
+        {
+            btnMenu.Cursor = Cursors.Hand;
+            btnMenu.BackColor = Color.FromArgb(192, 0, 192);
+            btnMenu.ForeColor = Color.Cyan;
+        }
+
+        private void mouse_leave(object sender, EventArgs e)
+        {
+            btnMenu.BackColor = Color.White;
+            btnMenu.ForeColor = Color.Black;
         }
     }
 }
