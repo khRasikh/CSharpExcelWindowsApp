@@ -34,15 +34,15 @@ namespace TestAddIn
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
-            DataGridViewCellStyle dataGridViewCellStyle10 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle11 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle16 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle17 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle18 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle12 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle13 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle14 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle15 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle7 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle8 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle9 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle5 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle6 = new DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             search = new TextBox();
             bannerPanel = new Panel();
@@ -138,8 +138,8 @@ namespace TestAddIn
             // 
             // btnMenu
             // 
-            btnMenu.BackColor = Color.Lime;
-            btnMenu.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            btnMenu.BackColor = Color.White;
+            btnMenu.Font = new Font("Segoe UI", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnMenu.ForeColor = Color.Black;
             btnMenu.Location = new Point(1651, 14);
             btnMenu.Name = "btnMenu";
@@ -148,20 +148,23 @@ namespace TestAddIn
             btnMenu.Text = "Meneu";
             btnMenu.UseVisualStyleBackColor = false;
             btnMenu.Click += button1_Click;
+            btnMenu.MouseLeave += mouse_leave;
+            btnMenu.MouseHover += mouse_enter;
             // 
             // labelPRValue
             // 
             labelPRValue.Anchor = AnchorStyles.Left;
             labelPRValue.AutoSize = true;
-            labelPRValue.BackColor = Color.MediumBlue;
-            labelPRValue.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold);
+            labelPRValue.BackColor = Color.FromArgb(192, 0, 192);
+            labelPRValue.BorderStyle = BorderStyle.Fixed3D;
+            labelPRValue.Font = new Font("Microsoft Sans Serif", 24F, FontStyle.Bold, GraphicsUnit.Point, 0);
             labelPRValue.ForeColor = Color.Cyan;
             labelPRValue.Location = new Point(870, 8);
-            labelPRValue.Margin = new Padding(4, 0, 4, 0);
             labelPRValue.Name = "labelPRValue";
-            labelPRValue.Size = new Size(54, 31);
+            labelPRValue.Padding = new Padding(10, 0, 12, 0);
+            labelPRValue.Size = new Size(58, 39);
             labelPRValue.TabIndex = 16;
-            labelPRValue.Text = "     ";
+            labelPRValue.Text = "1";
             // 
             // label7
             // 
@@ -303,51 +306,51 @@ namespace TestAddIn
             // lastOrdersTable
             // 
             lastOrdersTable.AllowUserToOrderColumns = true;
-            dataGridViewCellStyle10.BackColor = Color.MediumBlue;
-            dataGridViewCellStyle10.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle10.ForeColor = Color.Yellow;
-            dataGridViewCellStyle10.SelectionBackColor = Color.MediumBlue;
-            dataGridViewCellStyle10.SelectionForeColor = Color.Yellow;
-            lastOrdersTable.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle10;
+            dataGridViewCellStyle1.BackColor = Color.MediumBlue;
+            dataGridViewCellStyle1.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle1.ForeColor = Color.Yellow;
+            dataGridViewCellStyle1.SelectionBackColor = Color.MediumBlue;
+            dataGridViewCellStyle1.SelectionForeColor = Color.Yellow;
+            lastOrdersTable.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
             lastOrdersTable.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             lastOrdersTable.BackgroundColor = Color.MediumBlue;
             lastOrdersTable.BorderStyle = BorderStyle.None;
             lastOrdersTable.CellBorderStyle = DataGridViewCellBorderStyle.None;
-            dataGridViewCellStyle11.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle11.BackColor = Color.MediumBlue;
-            dataGridViewCellStyle11.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle11.ForeColor = Color.Yellow;
-            dataGridViewCellStyle11.SelectionBackColor = Color.Lime;
-            dataGridViewCellStyle11.SelectionForeColor = Color.Black;
-            dataGridViewCellStyle11.WrapMode = DataGridViewTriState.True;
-            lastOrdersTable.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle11;
+            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = Color.MediumBlue;
+            dataGridViewCellStyle2.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle2.ForeColor = Color.Yellow;
+            dataGridViewCellStyle2.SelectionBackColor = Color.Lime;
+            dataGridViewCellStyle2.SelectionForeColor = Color.Black;
+            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
+            lastOrdersTable.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
             lastOrdersTable.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             lastOrdersTable.Columns.AddRange(new DataGridViewColumn[] { lastOrderAnz, lastOrderNr, lastOrderName, lastOrderSize, lastOrderExtra, lastOrderPrice });
-            dataGridViewCellStyle16.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle16.BackColor = Color.MediumBlue;
-            dataGridViewCellStyle16.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle16.ForeColor = Color.Yellow;
-            dataGridViewCellStyle16.SelectionBackColor = Color.MediumBlue;
-            dataGridViewCellStyle16.SelectionForeColor = Color.Yellow;
-            dataGridViewCellStyle16.WrapMode = DataGridViewTriState.False;
-            lastOrdersTable.DefaultCellStyle = dataGridViewCellStyle16;
+            dataGridViewCellStyle7.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle7.BackColor = Color.MediumBlue;
+            dataGridViewCellStyle7.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle7.ForeColor = Color.Yellow;
+            dataGridViewCellStyle7.SelectionBackColor = Color.MediumBlue;
+            dataGridViewCellStyle7.SelectionForeColor = Color.Yellow;
+            dataGridViewCellStyle7.WrapMode = DataGridViewTriState.False;
+            lastOrdersTable.DefaultCellStyle = dataGridViewCellStyle7;
             lastOrdersTable.EditMode = DataGridViewEditMode.EditOnEnter;
             lastOrdersTable.GridColor = Color.MediumBlue;
             lastOrdersTable.Location = new Point(211, 202);
             lastOrdersTable.Margin = new Padding(4, 3, 4, 3);
             lastOrdersTable.Name = "lastOrdersTable";
-            dataGridViewCellStyle17.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle17.BackColor = Color.MediumBlue;
-            dataGridViewCellStyle17.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle17.ForeColor = Color.Yellow;
-            dataGridViewCellStyle17.SelectionBackColor = Color.MediumBlue;
-            dataGridViewCellStyle17.SelectionForeColor = Color.Yellow;
-            dataGridViewCellStyle17.WrapMode = DataGridViewTriState.True;
-            lastOrdersTable.RowHeadersDefaultCellStyle = dataGridViewCellStyle17;
+            dataGridViewCellStyle8.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle8.BackColor = Color.MediumBlue;
+            dataGridViewCellStyle8.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle8.ForeColor = Color.Yellow;
+            dataGridViewCellStyle8.SelectionBackColor = Color.MediumBlue;
+            dataGridViewCellStyle8.SelectionForeColor = Color.Yellow;
+            dataGridViewCellStyle8.WrapMode = DataGridViewTriState.True;
+            lastOrdersTable.RowHeadersDefaultCellStyle = dataGridViewCellStyle8;
             lastOrdersTable.RowHeadersVisible = false;
             lastOrdersTable.RowHeadersWidth = 5;
-            dataGridViewCellStyle18.WrapMode = DataGridViewTriState.False;
-            lastOrdersTable.RowsDefaultCellStyle = dataGridViewCellStyle18;
+            dataGridViewCellStyle9.WrapMode = DataGridViewTriState.False;
+            lastOrdersTable.RowsDefaultCellStyle = dataGridViewCellStyle9;
             lastOrdersTable.RowTemplate.DefaultCellStyle.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
             lastOrdersTable.ScrollBars = ScrollBars.None;
             lastOrdersTable.Size = new Size(1451, 381);
@@ -356,15 +359,15 @@ namespace TestAddIn
             // 
             // lastOrderAnz
             // 
-            dataGridViewCellStyle12.BackColor = Color.MediumBlue;
-            dataGridViewCellStyle12.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle12.ForeColor = Color.Yellow;
-            dataGridViewCellStyle12.Format = "N0";
-            dataGridViewCellStyle12.NullValue = null;
-            dataGridViewCellStyle12.Padding = new Padding(2);
-            dataGridViewCellStyle12.SelectionBackColor = Color.MediumBlue;
-            dataGridViewCellStyle12.SelectionForeColor = Color.Yellow;
-            lastOrderAnz.DefaultCellStyle = dataGridViewCellStyle12;
+            dataGridViewCellStyle3.BackColor = Color.MediumBlue;
+            dataGridViewCellStyle3.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle3.ForeColor = Color.Yellow;
+            dataGridViewCellStyle3.Format = "N0";
+            dataGridViewCellStyle3.NullValue = null;
+            dataGridViewCellStyle3.Padding = new Padding(2);
+            dataGridViewCellStyle3.SelectionBackColor = Color.MediumBlue;
+            dataGridViewCellStyle3.SelectionForeColor = Color.Yellow;
+            lastOrderAnz.DefaultCellStyle = dataGridViewCellStyle3;
             lastOrderAnz.FillWeight = 7.793834F;
             lastOrderAnz.HeaderText = "Anz";
             lastOrderAnz.MaxInputLength = 100;
@@ -374,9 +377,9 @@ namespace TestAddIn
             // 
             // lastOrderNr
             // 
-            dataGridViewCellStyle13.Format = "N0";
-            dataGridViewCellStyle13.NullValue = null;
-            lastOrderNr.DefaultCellStyle = dataGridViewCellStyle13;
+            dataGridViewCellStyle4.Format = "N0";
+            dataGridViewCellStyle4.NullValue = null;
+            lastOrderNr.DefaultCellStyle = dataGridViewCellStyle4;
             lastOrderNr.FillWeight = 7.793834F;
             lastOrderNr.HeaderText = "Nr.";
             lastOrderNr.MaxInputLength = 3;
@@ -399,8 +402,8 @@ namespace TestAddIn
             // 
             // lastOrderExtra
             // 
-            dataGridViewCellStyle14.Format = "N0";
-            lastOrderExtra.DefaultCellStyle = dataGridViewCellStyle14;
+            dataGridViewCellStyle5.Format = "N0";
+            lastOrderExtra.DefaultCellStyle = dataGridViewCellStyle5;
             lastOrderExtra.FillWeight = 18F;
             lastOrderExtra.HeaderText = "Extra";
             lastOrderExtra.MaxInputLength = 100;
@@ -409,9 +412,9 @@ namespace TestAddIn
             // 
             // lastOrderPrice
             // 
-            dataGridViewCellStyle15.Format = "N2";
-            dataGridViewCellStyle15.NullValue = null;
-            lastOrderPrice.DefaultCellStyle = dataGridViewCellStyle15;
+            dataGridViewCellStyle6.Format = "N2";
+            dataGridViewCellStyle6.NullValue = null;
+            lastOrderPrice.DefaultCellStyle = dataGridViewCellStyle6;
             lastOrderPrice.FillWeight = 7.793834F;
             lastOrderPrice.HeaderText = "Preis";
             lastOrderPrice.MaxInputLength = 10;
@@ -498,12 +501,13 @@ namespace TestAddIn
             // 
             labelKNR.AutoSize = true;
             labelKNR.BackColor = Color.FromArgb(192, 0, 192);
+            labelKNR.BorderStyle = BorderStyle.Fixed3D;
             labelKNR.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold);
             labelKNR.ForeColor = Color.Yellow;
             labelKNR.Location = new Point(209, 0);
             labelKNR.Margin = new Padding(2, 0, 2, 0);
             labelKNR.Name = "labelKNR";
-            labelKNR.Size = new Size(74, 31);
+            labelKNR.Size = new Size(76, 33);
             labelKNR.TabIndex = 0;
             labelKNR.Text = "K-Nr";
             // 
@@ -525,12 +529,13 @@ namespace TestAddIn
             // 
             labelName.AutoSize = true;
             labelName.BackColor = Color.FromArgb(192, 0, 192);
+            labelName.BorderStyle = BorderStyle.Fixed3D;
             labelName.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold);
             labelName.ForeColor = Color.Yellow;
             labelName.Location = new Point(520, 5);
             labelName.Margin = new Padding(2, 0, 2, 0);
             labelName.Name = "labelName";
-            labelName.Size = new Size(123, 31);
+            labelName.Size = new Size(125, 33);
             labelName.TabIndex = 2;
             labelName.Text = "  Name: ";
             // 
@@ -550,12 +555,13 @@ namespace TestAddIn
             // 
             labelPhone.AutoSize = true;
             labelPhone.BackColor = Color.FromArgb(192, 0, 192);
+            labelPhone.BorderStyle = BorderStyle.Fixed3D;
             labelPhone.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold);
             labelPhone.ForeColor = Color.Yellow;
             labelPhone.Location = new Point(1128, 1);
             labelPhone.Margin = new Padding(2, 0, 2, 0);
             labelPhone.Name = "labelPhone";
-            labelPhone.Size = new Size(103, 31);
+            labelPhone.Size = new Size(105, 33);
             labelPhone.TabIndex = 4;
             labelPhone.Text = "   Tel   ";
             // 
@@ -576,12 +582,13 @@ namespace TestAddIn
             // 
             labelStr.AutoSize = true;
             labelStr.BackColor = Color.FromArgb(192, 0, 192);
+            labelStr.BorderStyle = BorderStyle.Fixed3D;
             labelStr.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold);
             labelStr.ForeColor = Color.Yellow;
             labelStr.Location = new Point(209, 46);
             labelStr.Margin = new Padding(2, 0, 2, 0);
             labelStr.Name = "labelStr";
-            labelStr.Size = new Size(77, 31);
+            labelStr.Size = new Size(79, 33);
             labelStr.TabIndex = 6;
             labelStr.Text = "Str.  ";
             // 
@@ -602,12 +609,13 @@ namespace TestAddIn
             // 
             labelOrt.AutoSize = true;
             labelOrt.BackColor = Color.FromArgb(192, 0, 192);
+            labelOrt.BorderStyle = BorderStyle.Fixed3D;
             labelOrt.Font = new Font("Microsoft Sans Serif", 20F, FontStyle.Bold);
             labelOrt.ForeColor = Color.Yellow;
             labelOrt.Location = new Point(209, 80);
             labelOrt.Margin = new Padding(2, 0, 2, 0);
             labelOrt.Name = "labelOrt";
-            labelOrt.Size = new Size(79, 31);
+            labelOrt.Size = new Size(81, 33);
             labelOrt.TabIndex = 8;
             labelOrt.Text = "Ort   ";
             // 

@@ -48,7 +48,7 @@ namespace TestAddIn
             tabs = new TabControl
             {
                 Dock = DockStyle.Fill,
-                Font = new System.Drawing.Font("Segoe UI", 10),
+                Font = new System.Drawing.Font("Segoe UI", 14),
             };
 
             var tabOrders = new TabPage("Bestellungen");
@@ -146,7 +146,7 @@ namespace TestAddIn
             dgvOrders.Columns["Bez"].Width = 300;
             foreach (var o in OrdersManager.GetAll())
             {
-                dgvOrders.Rows.Add(o.KNr, o.Anz, o.Nr, o.Bez, o.Size, o.Extra, o.Price, o.Rabbat);
+                dgvOrders.Rows.Add(o.KNr, o.Anz, o.Nr, o.Bez, o.Size, "€" + o.Extra, "€" + o.Price, "€" + o.Rabbat);
             }
 
             UpdateOrdersSummary();
@@ -162,7 +162,7 @@ namespace TestAddIn
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
 
-            if (MessageBox.Show("Delete selected orders?", "Confirm",
+            if (MessageBox.Show("Ausgewählte Bestellungen löschen?", "Bestatigung",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
@@ -212,10 +212,10 @@ namespace TestAddIn
                 dgvArticles.Rows.Add(
                     a.CompNum,
                     a.Name,
-                    a.SinglPreis,
-                    a.JumboPreis,
-                    a.FamilyPreis,
-                    a.PartyPreis
+                    "€" + a.SinglPreis,
+                    "€" + a.JumboPreis,
+                    "€" + a.FamilyPreis,
+                    "€" + a.PartyPreis
                 );
             }
 
@@ -253,10 +253,10 @@ namespace TestAddIn
                 dgvArticlesTwo.Rows.Add(
                     a.CompNum,
                     a.Name,
-                    a.SinglPreis,
-                    a.JumboPreis,
-                    a.FamilyPreis,
-                    a.PartyPreis
+                    "€" + a.SinglPreis,
+                    "€" + a.JumboPreis,
+                    "€" + a.FamilyPreis,
+                    "€" + a.PartyPreis
                 );
             }
             UpdateKasse2Summary();
@@ -273,7 +273,7 @@ namespace TestAddIn
         {
             if (dgvArticles.SelectedRows.Count == 0) return;
 
-            if (MessageBox.Show("Delete selected article(s)?", "Confirm",
+            if (MessageBox.Show("Ausgewählte Artikle löschen??", "Bestatigung",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
@@ -300,7 +300,7 @@ namespace TestAddIn
                 Dock = DockStyle.Bottom,
                 Height = 35,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 ForeColor = Color.Yellow,
                 BackColor = Color.FromArgb(255, 0, 204)
             };
@@ -308,6 +308,20 @@ namespace TestAddIn
             tab.Controls.Add(lbl);
             return lbl;
         }
+
+        string ExtractNumber(string input)
+{
+    if (string.IsNullOrWhiteSpace(input)) return "0";
+
+    // remove € and spaces
+    input = input.Replace("€", "").Trim();
+
+    // keep only digits, comma, and dot
+    var filtered = new string(input.Where(c => char.IsDigit(c) || c == ',' || c == '.').ToArray());
+
+    return string.IsNullOrWhiteSpace(filtered) ? "0" : filtered;
+}
+
 
         private void UpdateOrdersSummary()
         {
@@ -322,13 +336,28 @@ namespace TestAddIn
                     decimal price = 0;
                     decimal rabbat = 0;
 
-                    decimal.TryParse(row.Cells["Price"].Value?.ToString(), out price);
-                    decimal.TryParse(row.Cells["Rabbat"].Value?.ToString(), out rabbat);
+                    var priceText = (row.Cells["Price"].Value?.ToString() ?? "").Replace("€", "").Trim();
+                    var rabbatText = (row.Cells["Rabbat"].Value?.ToString() ?? "").Replace("€", "").Trim();
+
+                    decimal.TryParse(
+                        (row.Cells["Price"].Value?.ToString() ?? "").Replace("€", "").Trim(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out price
+                    );
+
+                    decimal.TryParse(
+                        (row.Cells["Rabbat"].Value?.ToString() ?? "").Replace("€", "").Trim(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out rabbat
+                    );
 
                     totalPrice += price;
                     totalRabbat += rabbat;
                 }
             }
+
 
             lblOrdersSummary.Text = $"Bestellungen: {totalOrders} | Gesamtpreis: {totalPrice:0.00} € | Rabatt gesamt: {totalRabbat:0.00} €";
         }
@@ -364,10 +393,10 @@ namespace TestAddIn
                     ex.Id,
                     ex.Code,
                     ex.Name,
-                    ex.SinglPreis,
-                    ex.JumboPreis,
-                    ex.FamilyPreis,
-                    ex.PartyPreis
+                    "€" + ex.SinglPreis,
+                    "€" + ex.JumboPreis,
+                    "€" + ex.FamilyPreis,
+                    "€" + ex.PartyPreis
                 );
             }
             UpdateExtrasSummary();
@@ -389,18 +418,19 @@ namespace TestAddIn
 
             // Text colors
             dgv.DefaultCellStyle.ForeColor = Color.Yellow;
-            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 14, FontStyle.Regular);
 
 
             // Header styling
             dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(255, 0, 204);
             dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(255, 255, 0);
-            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 12, FontStyle.Regular);
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 14, FontStyle.Bold);
+            dgv.ColumnHeadersHeight = 42;
 
             dgv.RowHeadersDefaultCellStyle.BackColor = Color.MediumBlue;
             dgv.RowHeadersDefaultCellStyle.ForeColor = Color.Yellow;
 
-            dgv.RowTemplate.Height = 32;
+            dgv.RowTemplate.Height = 38;
             dgv.BorderStyle = BorderStyle.FixedSingle;
         }
     }

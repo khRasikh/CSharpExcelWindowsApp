@@ -29,6 +29,7 @@ namespace TestAddIn
         public Form1()
         {
             InitializeComponent();
+
             // Add ListBox programmatically with professional attributes
             customerListBox = new ListBox
             {
@@ -76,7 +77,8 @@ namespace TestAddIn
             lastOrdersTable.EditingControlShowing += LastOrdersTable_EditingControlShowing;
 
             // Handle cell edit end to auto-fill "Bez" based on "Nr"
-            articles = Article.LoadArticles("article.json");
+            labelPRValue.Text = "1";
+            LoadArticlesForCurrentKasse();
             lastOrdersTable.CellValueChanged += lastOrdersTable_CellValueChanged;
 
             //handle extra list 
@@ -105,6 +107,13 @@ namespace TestAddIn
             searchListBox.KeyDown += SearchListBox_KeyDown;
             searchListBox.Click += SearchListBox_Click;
 
+        }
+        private void LoadArticlesForCurrentKasse()
+        {
+            if (labelPRValue.Text == "2")
+                articles = Article.LoadArticles("article2.json");
+            else
+                articles = Article.LoadArticles("article.json");
         }
 
         private void SearchListBox_Click(object sender, EventArgs e)
@@ -346,9 +355,11 @@ namespace TestAddIn
                     }
                     else
                     {
-                        dgv.Rows[curRow].Cells["lastOrderName"].Value = "";
+                        //dgv.Rows[curRow].Cells["lastOrderName"].Value = "";
                         MessageBox.Show("Artikel nicht gefunden. Bitte prüfen!", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        dgv.CurrentCell = dgv.Rows[curRow].Cells["lastOrderNr"];
+                        //dgv.CurrentCell = dgv.Rows[curRow].Cells["lastOrderNr"];
+                        //dgv.Rows[curRow].Cells["lastOrderName"].Value = "";
+                        //dgv.CurrentCell = dgv.Rows[curRow].Cells["lastOrderBez"];
                     }
 
                     dgv.BeginEdit(true);
@@ -1475,13 +1486,37 @@ namespace TestAddIn
         {
             if (e.Control && (e.KeyCode == Keys.NumPad1 || e.KeyCode == Keys.D1))
             {
-                labelPRValue.Text = "1";
+                var result = MessageBox.Show(
+                    "Möchten Sie wirklich zur Kasse 1 wechseln? Y/N",
+                    "Bestätigen",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    labelPRValue.Text = "1";
+                    LoadArticlesForCurrentKasse();
+                }
             }
             else if (e.Control && (e.KeyCode == Keys.NumPad2 || e.KeyCode == Keys.D2))
             {
-                labelPRValue.Text = "2";
+                var result = MessageBox.Show(
+                    "Möchten Sie wirklich zur Kasse 2 wechseln? Y/N",
+                    "Bestätigen",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    labelPRValue.Text = "2";
+                    LoadArticlesForCurrentKasse();
+                }
             }
         }
+
+
         private void hanle_keys(object sender, KeyEventArgs e)
         {
             // change kasset
@@ -1553,5 +1588,17 @@ namespace TestAddIn
             f.ShowDialog(); // modal popup
         }
 
+        private void mouse_enter(object sender, EventArgs e)
+        {
+            btnMenu.Cursor = Cursors.Hand;
+            btnMenu.BackColor = Color.FromArgb(192, 0, 192);
+            btnMenu.ForeColor = Color.Cyan;
+        }
+
+        private void mouse_leave(object sender, EventArgs e)
+        {
+            btnMenu.BackColor = Color.White;
+            btnMenu.ForeColor = Color.Black;
+        }
     }
 }
