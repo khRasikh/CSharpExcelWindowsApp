@@ -69,17 +69,46 @@ namespace TestAddIn.customer
 
         public static Customer FindByKNr(string knr)
         {
-            return customers.Find(c => c.KNr == knr.Trim());
+            if (string.IsNullOrWhiteSpace(knr))
+                return null;
+
+            string clean = knr.Trim();
+
+            return customers.FirstOrDefault(c =>
+                (c.KNr?.Trim() ?? "") == clean
+            );
         }
+
 
         public static List<Customer> GetByAddress(string keyword)
         {
+            if (string.IsNullOrWhiteSpace(keyword))
+                return new List<Customer>();
+
+            keyword = Normalize(keyword);
+
             var customers = GetAll();
+
             return customers
                 .Where(c =>
-                    (!string.IsNullOrEmpty(c.Str) && c.Str.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (!string.IsNullOrEmpty(c.Ort) && c.Ort.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0))
+                    (!string.IsNullOrEmpty(c.Str) && Normalize(c.Str).Contains(keyword)) ||
+                    (!string.IsNullOrEmpty(c.Ort) && Normalize(c.Ort).Contains(keyword)) ||
+                    (!string.IsNullOrEmpty(c.Name) && Normalize(c.Name).Contains(keyword)) ||
+                    (!string.IsNullOrEmpty(c.Tel) && Normalize(c.Tel).Contains(keyword))
+                )
                 .ToList();
+        }
+
+        private static string Normalize(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return "";
+
+            return new string(
+                input.Trim()
+                     .ToLowerInvariant()
+                     .Where(ch => char.IsLetterOrDigit(ch))
+                     .ToArray()
+            );
         }
 
 

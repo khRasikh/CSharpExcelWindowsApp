@@ -25,6 +25,11 @@ namespace TestAddIn
         private List<Article> articles;
         private List<Extras> extras = new List<Extras>();
         private ListBox searchListBox;
+        private string appDriveLetter;
+        private Timer driveCheckTimer;
+        private bool isUserTypingStreet = false;
+        private string monitoredDriveRoot;
+
 
         public Form1()
         {
@@ -36,8 +41,8 @@ namespace TestAddIn
                 Name = "customerListBox",
                 Visible = false,
                 Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular), // Professional, readable font
-                ForeColor = System.Drawing.Color.DarkBlue, // Consistent with your choice
-                BackColor = System.Drawing.Color.WhiteSmoke, // Subtle background for contrast
+                ForeColor = Color.Cyan, // Consistent with your choice
+                BackColor = Color.FromArgb(192, 0, 192), // Subtle background for contrast
                 BorderStyle = BorderStyle.FixedSingle, // Clean border
                 Height = 400, // Set height to 400px as specified
                 ScrollAlwaysVisible = true, // Visible vertical scrollbar for overflow
@@ -76,6 +81,7 @@ namespace TestAddIn
             // Custom beam for cells in lastORdersTable 
             lastOrdersTable.EditingControlShowing += LastOrdersTable_EditingControlShowing;
 
+
             // Handle cell edit end to auto-fill "Bez" based on "Nr"
             labelPRValue.Text = "1";
             LoadArticlesForCurrentKasse();
@@ -84,11 +90,23 @@ namespace TestAddIn
             //handle extra list 
             ExtrasManager.LoadExtras("extra.json");
 
-            //top header
-            Timer timer = new Timer();
-            timer.Interval = 1000; // 1 second
-            timer.Tick += Timer_Tick;
-            timer.Start();
+            try
+            {
+                var customersFullPath = Path.GetFullPath("customers.txt");
+                monitoredDriveRoot = Path.GetPathRoot(customersFullPath);  // e.g. "E:\"
+                                                                           // Optional debug:
+                                                                           // MessageBox.Show("Monitoring drive: " + monitoredDriveRoot);
+            }
+            catch
+            {
+                monitoredDriveRoot = null; // if file not found, don't crash
+            }
+
+            // Start timer that checks the drive every second
+            driveCheckTimer = new Timer();
+            driveCheckTimer.Interval = 1000;
+            driveCheckTimer.Tick += Timer_Tick;
+            driveCheckTimer.Start();
 
             labelPRValue.Text = "1";
 
@@ -108,6 +126,7 @@ namespace TestAddIn
             searchListBox.Click += SearchListBox_Click;
 
         }
+
         private void LoadArticlesForCurrentKasse()
         {
             if (labelPRValue.Text == "2")
@@ -124,27 +143,63 @@ namespace TestAddIn
 
         private void SelectCustomerFromPopup()
         {
-            if (searchListBox.SelectedIndex >= 0 && searchListBox.Tag is List<Customer> matches)
-            {
-                var selectedCustomer = matches[searchListBox.SelectedIndex];
-                PopulateCustomerFields(selectedCustomer);
+            // Always hide BOTH popups
+            customerListBox.Visible = false;
+            searchListBox.Visible = false;
 
-                searchListBox.Visible = false;
-                this.lastOrdersTable.Focus();
+            if (!(searchListBox.Tag is List<Customer> matches))
+                return;
+
+            int index = searchListBox.SelectedIndex;
+
+            if (index <= 1) return;
+
+            int customerIndex = index - 2;
+
+            if (customerIndex >= 0 && customerIndex < matches.Count)
+            {
+                var selectedCustomer = matches[customerIndex];
+                PopulateCustomerFields(selectedCustomer);
             }
+
+            // Always take focus AFTER hiding
+            lastOrdersTable.Focus();
         }
+
         private void PopulateCustomerFields(Customer found)
         {
+            // disable popup logic triggered by TextChanged
+            isUserTypingStreet = false;
+
             knr.Text = found.KNr;
             name.Text = found.Name;
             phone.Text = found.Tel;
             str.Text = found.Str;
             ort.Text = found.Ort;
+
+            // re-enable typing logic after assignment
+            isUserTypingStreet = true;
         }
+
 
         private void Timer_Tick(object sender, EventArgs e)
         {
+            // update date and time every second
             labelDate.Text = DateTime.Now.ToString("dd.MM.yyyy    HH:mm:ss");
+
+            // If we couldn't detect a drive, don't do anything
+            if (string.IsNullOrEmpty(monitoredDriveRoot))
+                return;
+
+            // Check if that drive still exists (e.g. "E:\")
+            bool driveExists = DriveInfo.GetDrives()
+                .Any(d => string.Equals(d.Name, monitoredDriveRoot, StringComparison.OrdinalIgnoreCase));
+
+            if (!driveExists)
+            {
+                driveCheckTimer.Stop();
+                Application.Exit();
+            }
         }
 
         private void LastOrdersTable_CurrentCellDirtyStateChanged(object sender, EventArgs e)
@@ -539,43 +594,25 @@ namespace TestAddIn
             {
                 if (dgv.CurrentCell != null)
                 {
-                    int curRow = dgv.CurrentCell.RowIndex;
-                    int curCol = dgv.CurrentCell.ColumnIndex;
+                    var tb = dgv.EditingControl as TextBox;
 
-                    // Get the current cell value
-                    var currentValue = dgv.CurrentCell.Value?.ToString();
-
-                    // CASE 1: If cell is NOT empty → clear the value, but stay in the same cell
-                    if (!string.IsNullOrEmpty(currentValue))
+                    // If user is typing (text box active)
+                    if (tb != null)
                     {
-                        dgv.CurrentCell.Value = string.Empty;
-                        dgv.BeginEdit(true); // Keep editing mode
-                        return true; // Handled
+                        // CASE 1 — Textbox has characters → let normal backspace delete one char
+                        if (tb.TextLength > 0)
+                        {
+                            // Let the TextBox handle Backspace normally
+                            return base.ProcessCmdKey(ref msg, keyData);
+                        }
+
+                        // CASE 2 — Textbox is empty → move to previous cell
+                        MoveToPreviousCell(dgv);
+                        return true;
                     }
 
-                    // CASE 2: If cell is already empty → move focus to previous cell
-                    int prevCol = curCol - 1;
-                    int prevRow = curRow;
-
-                    // If we're at the start of the row, go to the last column of the previous row
-                    if (prevCol < 0)
-                    {
-                        prevRow--;
-                        if (prevRow >= 0)
-                        {
-                            prevCol = dgv.Columns.Count - 1;
-                        }
-                        else
-                        {
-                            // Already at the very first cell in the grid → do nothing
-                            return true;
-                        }
-                    }
-
-                    // Set the new current cell and enter edit mode
-                    dgv.CurrentCell = dgv.Rows[prevRow].Cells[prevCol];
-                    dgv.BeginEdit(true);
-                    return true;
+                    // If no editing control (not editing cell)
+                    return base.ProcessCmdKey(ref msg, keyData);
                 }
             }
             else if (key == Keys.F9)
@@ -583,9 +620,35 @@ namespace TestAddIn
                 var customer = Customer.FindByKNr(this.knr.Text);
                 PrintOrder(lastOrdersTable, customer); // pass your customer and DGV
                 return true;
+            }else if (keyData == Keys.F10)
+            {
+                this.Close();
+                return true;
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private void MoveToPreviousCell(DataGridView dgv)
+        {
+            int curRow = dgv.CurrentCell.RowIndex;
+            int curCol = dgv.CurrentCell.ColumnIndex;
+
+            int prevCol = curCol - 1;
+            int prevRow = curRow;
+
+            // If we're at the start of a row, jump to previous row
+            if (prevCol < 0)
+            {
+                prevRow--;
+                if (prevRow < 0)
+                    return; // at very beginning — do nothing
+
+                prevCol = dgv.Columns.Count - 1;
+            }
+
+            dgv.CurrentCell = dgv.Rows[prevRow].Cells[prevCol];
+            dgv.BeginEdit(true);
         }
 
 
@@ -893,38 +956,49 @@ namespace TestAddIn
 
                 if (input == "0")
                 {
-                    search.Text = "Abholer"; // default value
+                    search.Text = "Abholer";
                     this.knr.Text = "";
                     this.lastOrdersTable.Focus();
                     return;
                 }
-                // Check if the input is numeric → treat it as KNr
-                if (int.TryParse(input, out _))
-                {
-                    // Get last discount
-                    int lastDiscountPercentage = OrdersManager.GetLastDiscount(search.Text, "orders.txt");
-                    textBoxDiscount.Text = lastDiscountPercentage.ToString() ?? "0";
 
+                // ➤ 1) Check if input is a positive number (KNr search)
+                int inputIs;
+                if (int.TryParse(input, out inputIs) && inputIs > 0)
+                {
+                   
                     var found = Customer.FindByKNr(input);
 
                     if (found != null)
                     {
+                        
+                        int lastDiscountPercentage = OrdersManager.GetLastDiscount(found.KNr, "orders.txt");
+                        textBoxDiscount.Text = lastDiscountPercentage.ToString() ?? "0";
                         PopulateCustomerFields(found);
+                        
                         this.lastOrdersTable.Focus();
+                        if (customerListBox.Items.Count > 0)
+                        {
+                            this.customerListBox.Focus();
+                        }
                         return;
                     }
+
                     else
                     {
-                        knr.Text = string.Empty;
-                        name.Text = string.Empty;
-                        phone.Text = string.Empty;
-                        str.Text = string.Empty;
-                        ort.Text = string.Empty;
 
-                        var result = MessageBox.Show("Kunde nicht gefunden. Möchten Sie einen neuen Kunden anlegen?",
-                                                     "Kunde anlegen",
-                                                     MessageBoxButtons.YesNo,
-                                                     MessageBoxIcon.Question);
+                        // Customer not found → offer to create
+                        knr.Text = "";
+                        name.Text = "";
+                        phone.Text = "";
+                        str.Text = "";
+                        ort.Text = "";
+
+                        var result = MessageBox.Show(
+                            "Kunde nicht gefunden. Möchten Sie einen neuen Kunden anlegen?",
+                            "Kunde anlegen",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
 
                         if (result == DialogResult.Yes)
                         {
@@ -941,69 +1015,73 @@ namespace TestAddIn
                         return;
                     }
                 }
+
+                // ➤ 2) Input is NOT a pure positive number → search name/street/city/phone
+                var matches = Customer.GetByAddress(input);
+
+                searchListBox.Items.Clear();
+                searchListBox.Visible = false;
+
+
+                if (matches.Count == 1)
+                {
+                    // Directly populate if only one match
+                    customerListBox.Visible = false;
+                    PopulateCustomerFields(matches[0]);
+                    this.lastOrdersTable.Focus();
+                    return;
+                }
+                else if (matches.Count > 0)
+                {
+                    searchListBox.Items.Clear();
+
+                    // Header
+                    searchListBox.Items.Add(
+                        string.Format("{0,-5} {1,-15} {2,-20} {3,-25} {4,-15}",
+                            "NO", "Str.No", "Name", "Str", "Tel")
+                    );
+                    searchListBox.Items.Add(new string('-', 85));
+
+                    int index = 1;
+                    foreach (var customer in matches)
+                    {
+                        string streetNumber = GetStreetNumber(customer.Str);
+                        string streetName = GetStreetName(customer.Str);
+
+                        searchListBox.Items.Add(
+                            string.Format("{0,-5} {1,-6} {2,-15} {3,-20} {4,-10}",
+                                index,
+                                streetNumber,
+                                customer.Name,
+                                streetName,
+                                customer.Tel
+                            )
+                        );
+                        index++;
+                    }
+
+                    searchListBox.Tag = matches;
+                    searchListBox.ItemHeight = 32;
+                    searchListBox.BackColor = Color.Black;
+                    searchListBox.ForeColor = Color.White;
+                    searchListBox.BorderStyle = BorderStyle.FixedSingle;
+                    searchListBox.Width = 1000;
+                    searchListBox.Height = Math.Min(400, matches.Count * searchListBox.ItemHeight + 8);
+                    searchListBox.Font = new Font(FontFamily.GenericMonospace, 16);
+
+                    searchListBox.Left = (this.ClientSize.Width - searchListBox.Width) / 2;
+                    searchListBox.Top = (this.ClientSize.Height - searchListBox.Height) / 2;
+
+                    searchListBox.BringToFront();
+                    searchListBox.Visible = true;
+                    searchListBox.Focus();
+                }
                 else
                 {
-                    // Non-numeric → search by address
-                    var matches = Customer.GetByAddress(input);
-
-                    searchListBox.Items.Clear();
-                    searchListBox.Visible = false;
-
-                    if (matches.Count > 0)
-                    {
-                        searchListBox.Items.Clear();
-
-                        // Add header first
-                        searchListBox.Items.Add(
-                            string.Format("{0,-5} {1,-15} {2,-20} {3,-25} {4,-15}",
-                                "NO", "Str.No", "Name", "Str", "Tel")
-                        );
-                        searchListBox.Items.Add(new string('-', 85)); // separator line
-
-                        int index = 1;
-                        foreach (var customer in matches)
-                        {
-                            // Split street into number + name
-                            string streetNumber = GetStreetNumber(customer.Str);
-                            string streetName = GetStreetName(customer.Str);
-
-                            searchListBox.Items.Add(
-                                string.Format("{0,-5} {1,-6} {2,-15} {3,-20} {4,-10}",
-                                    index,
-                                    streetNumber,
-                                    customer.Name,
-                                    streetName,
-                                    customer.Tel
-                                )
-                            );
-                            index++;
-                        }
-
-                        searchListBox.Tag = matches; // Store matches for later selection
-                        searchListBox.ItemHeight = 32; // Adjust row height for padding effect
-                        searchListBox.BackColor = Color.Black;
-                        searchListBox.ForeColor = Color.White;
-                        searchListBox.BorderStyle = BorderStyle.FixedSingle;
-                        searchListBox.Width = 1000; // Wider for readability
-                        searchListBox.Height = Math.Min(400, matches.Count * searchListBox.ItemHeight + 8); // Add some padding
-                        searchListBox.Font = new Font(FontFamily.GenericMonospace, 16, FontStyle.Regular);
-
-
-                        // Center on the screen
-                        searchListBox.Left = (this.ClientSize.Width - searchListBox.Width) / 2;
-                        searchListBox.Top = (this.ClientSize.Height - searchListBox.Height) / 2;
-
-                        searchListBox.BringToFront();
-                        searchListBox.Visible = true;
-                        searchListBox.Focus();
-                    }
-
-                    else
-                    {
-                        MessageBox.Show("No matching addresses found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
+                    MessageBox.Show("No matching addresses found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
+
         }
 
 
@@ -1239,6 +1317,9 @@ namespace TestAddIn
         }
         private void str_TextChanged(object sender, EventArgs e)
         {
+            if (!isUserTypingStreet)
+                return;
+
             if (customerListBox == null) return; // Safety check
 
             var input = str.Text.Trim();
@@ -1321,9 +1402,12 @@ namespace TestAddIn
 
         private void str_KeyDown(object sender, KeyEventArgs e)
         {
+            isUserTypingStreet = true;
             change_kasset(sender, e);
+            
             if (customerListBox.Visible && customerListBox.Items.Count > 0)
             {
+                
                 if (e.KeyCode == Keys.Down)
                 {
                     e.Handled = true;
@@ -1342,11 +1426,28 @@ namespace TestAddIn
 
                     var input = str.Text.Trim().ToLower();
                     var customers = Customer.GetAll();
+
                     var filteredCustomers = customers
-                        .Where(c => c.Str != null && c.Str.ToLower().StartsWith(input))
-                        .GroupBy(c => c.Name)
-                        .Select(g => g.First())
-                        .ToList();
+                                            .Where(c => c.Str != null &&
+                                                        c.Str.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                                            .GroupBy(c => Normalize(c.Str))   // SAME grouping as popup
+                                            .Select(g => g.First())
+                                            .ToList();
+
+                    string Normalize(string text)
+                    {
+                        if (string.IsNullOrWhiteSpace(text))
+                            return string.Empty;
+
+                        return new string(
+                            text.Trim()
+                                .Normalize(NormalizationForm.FormC)
+                                .Where(ch => !char.IsControl(ch))
+                                .ToArray()
+                        ).ToLowerInvariant();
+                    }
+
+
 
                     if (customerListBox.SelectedIndex >= 0 && customerListBox.SelectedIndex < filteredCustomers.Count)
                     {
@@ -1536,6 +1637,13 @@ namespace TestAddIn
             }
             else if (key == Keys.Back)
             {
+                // Check if sender is a TextBox
+                if (sender is TextBox tb)
+                {
+                    // If textbox still has content → do nothing
+                    if (!string.IsNullOrEmpty(tb.Text))
+                        return;
+                }
                 this.textBoxDiscount.Clear();
                 this.textBoxDiscount.Text = "0";
                 this.labelLastDiscountValue.Text = "0";
