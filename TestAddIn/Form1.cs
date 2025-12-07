@@ -25,7 +25,6 @@ namespace TestAddIn
         private List<Article> articles;
         private List<Extras> extras = new List<Extras>();
         private ListBox searchListBox;
-        private string appDriveLetter;
         private Timer driveCheckTimer;
         private bool isUserTypingStreet = false;
         private string monitoredDriveRoot;
@@ -729,8 +728,25 @@ namespace TestAddIn
             sb.Append("<html><head>");
             sb.Append(@"
     <style>
-        @page { size: A5; margin: 10mm; }
-        body { font-family: Arial, sans-serif; font-size: 14px; }
+         @page { 
+        margin: 0 !important; /* Keine Ränder auf der Druckseite */
+        padding: 0 !important;
+        size: auto; /* Passt sich dem Inhalt an */
+        }
+        body { 
+            font-family: Arial, sans-serif; 
+            font-size: 16px;
+            line-height: 1.4;
+            margin: 0 !important; 
+            padding: 0 !important;
+            width: 100%;
+        }
+        .print-container {
+            margin: 0;
+            padding: 10px; /* Nur innerer Abstand, kein seitlicher */
+            width: 100%;
+            box-sizing: border-box;
+        }
         h2 { font-weight: bold; margin-bottom: 2px; }
         table { width: 70%; border-collapse: collapse; margin-top: 5px; }
         th, td { padding: 2px 4px; word-break: break-word; }
@@ -1587,33 +1603,33 @@ namespace TestAddIn
         {
             if (e.Control && (e.KeyCode == Keys.NumPad1 || e.KeyCode == Keys.D1))
             {
-                var result = MessageBox.Show(
-                    "Möchten Sie wirklich zur Kasse 1 wechseln? Y/N",
-                    "Bestätigen",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question
-                );
+                //var result = MessageBox.Show(
+                //    "Möchten Sie wirklich zur Kasse 1 wechseln? Y/N",
+                //    "Bestätigen",
+                //    MessageBoxButtons.YesNo,
+                //    MessageBoxIcon.Question
+                //);
 
-                if (result == DialogResult.Yes)
-                {
-                    labelPRValue.Text = "1";
-                    LoadArticlesForCurrentKasse();
-                }
+                //if (result == DialogResult.Yes)
+                //{
+                labelPRValue.Text = "1";
+                LoadArticlesForCurrentKasse();
+                //}
             }
             else if (e.Control && (e.KeyCode == Keys.NumPad2 || e.KeyCode == Keys.D2))
             {
-                var result = MessageBox.Show(
-                    "Möchten Sie wirklich zur Kasse 2 wechseln? Y/N",
-                    "Bestätigen",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question
-                );
+                //var result = MessageBox.Show(
+                //    "Möchten Sie wirklich zur Kasse 2 wechseln? Y/N",
+                //    "Bestätigen",
+                //    MessageBoxButtons.YesNo,
+                //    MessageBoxIcon.Question
+                //);
 
-                if (result == DialogResult.Yes)
-                {
+                //if (result == DialogResult.Yes)
+                //{
                     labelPRValue.Text = "2";
                     LoadArticlesForCurrentKasse();
-                }
+                //}
             }
         }
 
