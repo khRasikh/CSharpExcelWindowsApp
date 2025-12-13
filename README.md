@@ -1,6 +1,6 @@
 # TestWindows App
 
-TestAddIn is a simple experimental application created solely for learning and testing purposes.  
+WindowsApp is a simple experimental application created solely for learning and testing purposes.  
 It demonstrates basic functionality within a local Windows environment and is **not intended for production use**, especially not in financial or business-critical systems.
 
 ---
