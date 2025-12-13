@@ -1,17 +1,9 @@
-name: Build and deploy .NET Windows App
-
-env:
-  AZURE_WEBAPP_NAME: CSharpExcelAddIn
-  AZURE_WEBAPP_PACKAGE_PATH: '.'
-  DOTNET_VERSION: '5.0.x'
+name: Build .NET Windows App
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
@@ -20,41 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log environment variables (Build)
-        run: |
-          echo "🔹 DOTNET_VERSION = $env:DOTNET_VERSION"
-          echo "🔹 AZURE_WEBAPP_NAME = $env:AZURE_WEBAPP_NAME"
-          echo "🔹 AZURE_WEBAPP_PACKAGE_PATH = $env:AZURE_WEBAPP_PACKAGE_PATH"
-          echo "🔹 DOTNET_ROOT = $env:DOTNET_ROOT"
-
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: 9.0.x   # match net9.0-windows
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
+      - name: Clean
+        run: dotnet clean
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o $env:DOTNET_ROOT\myapp
-
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-app
-          path: ${{ env.DOTNET_ROOT }}\myapp
-
-  deploy:
-    runs-on: windows-latest
-    needs: build
-
-    steps:
-      - name: Log environment variables (Deploy)
-        run: |
-          echo "🚀 Deployment logs:"
-          echo "🔹 AZURE_WEBAPP_NAME = $env:AZURE_WEBAPP_NAME"
-          echo "🔹 AZURE_WEBAPP_PACKAGE_PATH = $env:AZURE_WEBAPP_PACKAGE_PATH"
-          echo "🔹 DOTNET_VERSION = $env:DOTNET_VERSION"
-
-      - name: Mock deploy step
-        run: echo "✅ Deployment skipped (mock run only)."
+      - name: Publish to downloads folder
+        run: dotnet publish TestAddIn -c Release -o TestAddIn\downloads
