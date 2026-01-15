@@ -21,4 +21,5 @@ jobs:
         run: dotnet clean
 
       - name: Publish to downloads folder
-        run: dotnet publish TestAddIn -c Release -o TestAddIn\downloads
+        run: dotnet publish TestAddIn/TestAddIn.csproj -c Release -o ${{ github.workspace }}\publish
+
