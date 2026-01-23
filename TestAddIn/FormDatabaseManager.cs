@@ -146,7 +146,7 @@ namespace TestAddIn
             dgvOrders.Columns["Bez"].Width = 300;
             foreach (var o in OrdersManager.GetAll())
             {
-                dgvOrders.Rows.Add(o.KNr, o.Anz, o.Nr, o.Bez, o.Size, "€" + o.Extra, "€" + o.Price, "€" + o.Rabbat);
+                dgvOrders.Rows.Add(o.KNr, o.Anz, o.Nr, o.Bez, o.Size, "€" + o.Extra, "€" + o.Price, "%" + o.Rabbat );
             }
 
             UpdateOrdersSummary();

@@ -33,6 +33,8 @@ namespace TestAddIn.customer
 
             try
             {
+                customers.Clear();
+
                 var lines = File.ReadAllLines(filePath);
                 foreach (var line in lines.Skip(1)) // Skip header
                 {
@@ -94,7 +96,7 @@ namespace TestAddIn.customer
                     (!string.IsNullOrEmpty(c.Str) && Normalize(c.Str).Contains(keyword)) ||
                     (!string.IsNullOrEmpty(c.Ort) && Normalize(c.Ort).Contains(keyword)) ||
                     (!string.IsNullOrEmpty(c.Name) && Normalize(c.Name).Contains(keyword)) ||
-                    (!string.IsNullOrEmpty(c.Tel) && Normalize(c.Tel).Contains(keyword))
+                    (!string.IsNullOrEmpty(c.Tel) && c.Tel.Contains(keyword))
                 )
                 .ToList();
         }

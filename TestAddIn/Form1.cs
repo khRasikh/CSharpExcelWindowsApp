@@ -14,12 +14,18 @@ using TestAddIn.customer;
 using TestAddIn.extras;
 using TestAddIn.orders;
 using TestAddIn.shared;
+using System.Runtime.InteropServices; 
+
 
 namespace TestAddIn
 {
+    
+
 
     public partial class Form1 : Form
     {
+        private CultureInfo currentCulture = CultureInfo.CurrentCulture;
+        private bool useGermanFormat = true; // Default to German
         private ListBox customerListBox;
         private Tools tools;
         private List<Article> articles;
@@ -29,18 +35,47 @@ namespace TestAddIn
         private bool isUserTypingStreet = false;
         private string monitoredDriveRoot;
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetKeyboardLayout(uint idThread);
+        
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
+        
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+        
+        private bool IsGermanKeyboard()
+        {
+            try
+            {
+                IntPtr foregroundWindow = GetForegroundWindow();
+                uint foregroundProcess = GetWindowThreadProcessId(foregroundWindow, IntPtr.Zero);
+                IntPtr keyboardLayout = GetKeyboardLayout(foregroundProcess);
+                
+                // German keyboard layouts typically have these IDs
+                int layoutId = keyboardLayout.ToInt32() & 0xFFFF;
+                return layoutId == 0x0407 || layoutId == 0x0807 || layoutId == 0x0C07 || 
+                    layoutId == 0x1007 || layoutId == 0x1407;
+            }
+            catch
+            {
+                return false; // Default to English if detection fails
+            }
+        }
+
 
         public Form1()
         {
             InitializeComponent();
-
+            useGermanFormat = IsGermanKeyboard();
+            
             // Add ListBox programmatically with professional attributes
             customerListBox = new ListBox
             {
                 Name = "customerListBox",
                 Visible = false,
-                Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular), // Professional, readable font
-                ForeColor = Color.Cyan, // Consistent with your choice
+                Font = new System.Drawing.Font("Segoe UI", 22F, System.Drawing.FontStyle.Bold), // Professional, readable font
+                ForeColor = Color.Yellow, // Consistent with your choice
                 BackColor = Color.FromArgb(192, 0, 192), // Subtle background for contrast
                 BorderStyle = BorderStyle.FixedSingle, // Clean border
                 Height = 400, // Set height to 400px as specified
@@ -70,6 +105,14 @@ namespace TestAddIn
             /*override method used ProcessCmdKey*/
 
             textBoxDiscount.KeyDown += OrderTextBox_KeyDown;
+            textBoxDiscount.KeyPress += (sender, e) =>
+            {
+                // Convert dot to comma for German format
+                if (e.KeyChar == '.')
+                {
+                    e.KeyChar = ',';
+                }
+            };
 
             // focus cursor on search box when form loads
             this.Load += (s, e) => search.Focus();
@@ -183,6 +226,14 @@ namespace TestAddIn
 
         private void Timer_Tick(object sender, EventArgs e)
         {
+            if (useGermanFormat)
+            {
+                labelDate.Text = DateTime.Now.ToString("dd.MM.yyyy    HH:mm:ss");
+            }
+            else
+            {
+                labelDate.Text = DateTime.Now.ToString("MM/dd/yyyy    hh:mm:ss tt");
+            }
             // update date and time every second
             labelDate.Text = DateTime.Now.ToString("dd.MM.yyyy    HH:mm:ss");
 
@@ -275,19 +326,30 @@ namespace TestAddIn
 
             if (article == null) return;
 
-            switch (char.ToUpper(e.KeyChar))
+            // Parse the quantity safely
+            decimal quantity = ParseDecimal(anzCell.Value?.ToString() ?? "1");
+            if (quantity == 0) quantity = 1; // Default to 1 if not specified
+
+            char keyChar = char.ToUpper(e.KeyChar);
+
+            switch (keyChar)
             {
                 case 'S':
-                    priceCell.Value = Convert.ToDecimal(article.SinglPreis) * Convert.ToDecimal(anzCell.Value);
+                    // Parse the price properly and multiply
+                    decimal singlePrice = ParseDecimal(article.SinglPreis?.ToString() ?? "0");
+                    priceCell.Value = (singlePrice * quantity).ToString("F2").Replace(".", ",");
                     break;
                 case 'J':
-                    priceCell.Value = Convert.ToDecimal(article.JumboPreis) * Convert.ToDecimal(anzCell.Value);
+                    decimal jumboPrice = ParseDecimal(article.JumboPreis?.ToString() ?? "0");
+                    priceCell.Value = (jumboPrice * quantity).ToString("F2").Replace(".", ",");
                     break;
                 case 'F':
-                    priceCell.Value = Convert.ToDecimal(article.FamilyPreis) * Convert.ToDecimal(anzCell.Value);
+                    decimal familyPrice = ParseDecimal(article.FamilyPreis?.ToString() ?? "0");
+                    priceCell.Value = (familyPrice * quantity).ToString("F2").Replace(".", ",");
                     break;
                 case 'P':
-                    priceCell.Value = Convert.ToDecimal(article.PartyPreis) * Convert.ToDecimal(anzCell.Value);
+                    decimal partyPrice = ParseDecimal(article.PartyPreis?.ToString() ?? "0");
+                    priceCell.Value = (partyPrice * quantity).ToString("F2").Replace(".", ",");
                     break;
                 default:
                     break;
@@ -352,7 +414,20 @@ namespace TestAddIn
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
-        {
+        {   
+            if (keyData == (Keys.Control | Keys.L)) // Ctrl+L to toggle language
+            {
+                useGermanFormat = !useGermanFormat;
+                
+                // Update display immediately
+                Timer_Tick(null, EventArgs.Empty);
+                UpdateTotals();
+                
+                MessageBox.Show(useGermanFormat ? "German format activated" : "English format activated", 
+                            "Language", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return true;
+            }
+
             var dgv = lastOrdersTable;
             bool gridHasFocus =
                 dgv != null &&
@@ -661,11 +736,9 @@ namespace TestAddIn
             {
                 if (row.IsNewRow) continue;
 
-                // Parse total and discount safely
-                decimal totalValue = 0;
-                decimal discountValue = 0;
-                decimal.TryParse(this.labelSumValue.Text, out totalValue);
-                decimal.TryParse(this.labelLastDiscountValue.Text?.ToString() ?? "0", out discountValue);
+                // Parse total and discount safely using ParseDecimal
+                decimal totalValue = ParseDecimal(this.labelSumValue.Text);
+                decimal discountValue = ParseDecimal(this.labelLastDiscountValue.Text?.ToString() ?? "0");
 
                 // Read extra input expression (can contain +10-5+2 etc.)
                 string extraInput = row.Cells["LastOrderExtra"].Value?.ToString()?.Trim() ?? "";
@@ -709,13 +782,20 @@ namespace TestAddIn
                     }
                 }
 
+                // Parse quantity and price safely
+                string countText = row.Cells["lastOrderAnz"].Value?.ToString() ?? "0";
+                decimal countValue = ParseDecimal(countText);
+                
+                string priceText = row.Cells["lastOrderPrice"].Value?.ToString() ?? "0";
+                decimal priceValue = ParseDecimal(priceText);
+
                 // Build order entry
                 var order = new
                 {
-                    count = row.Cells["lastOrderAnz"].Value?.ToString() ?? "0",
+                    count = countText,
                     id = row.Cells["lastOrderNr"].Value?.ToString() ?? "",
                     name = row.Cells["lastOrderName"].Value?.ToString() ?? "",
-                    price = row.Cells["lastOrderPrice"].Value?.ToString() ?? "",
+                    price = priceValue,
                     size = sizeCode,
                     extras = extrasList
                 };
@@ -727,34 +807,71 @@ namespace TestAddIn
             var sb = new StringBuilder();
             sb.Append("<html><head>");
             sb.Append(@"
-    <style>
-         @page { 
-        margin: 0 !important; /* Keine Ränder auf der Druckseite */
-        padding: 0 !important;
-        size: auto; /* Passt sich dem Inhalt an */
-        }
-        body { 
-            font-family: Arial, sans-serif; 
-            font-size: 16px;
-            line-height: 1.4;
-            margin: 0 !important; 
-            padding: 0 !important;
-            width: 100%;
-        }
-        .print-container {
-            margin: 0;
-            padding: 10px; /* Nur innerer Abstand, kein seitlicher */
-            width: 100%;
-            box-sizing: border-box;
-        }
-        h2 { font-weight: bold; margin-bottom: 2px; }
-        table { width: 70%; border-collapse: collapse; margin-top: 5px; }
-        th, td { padding: 2px 4px; word-break: break-word; }
-        th { font-weight: bold; background-color: #f2f2f2; }
-        td.right { text-align: right; }
-        .totals { margin-top: 5px; text-align: left; font-weight: bold; }
-        .footer { margin-top: 5px; text-align: left; }
-    </style>");
+            <style>
+                @page { 
+                    margin: 5mm !important;   /* smaller paper margins */
+                    size: auto;
+                }
+
+                body { 
+                    font-family: Arial, sans-serif; 
+                    font-size: 22px;          /* ⬅ bigger base font */
+                    line-height: 1.5;
+                    margin: 0 !important; 
+                    padding: 0 !important;
+                    width: 100%;
+                }
+
+                .print-container {
+                    margin: 0;
+                    padding: 5px;             /* less inner padding */
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+
+                h2 { 
+                    font-weight: bold; 
+                    margin-bottom: 4px;
+                    font-size: 22px;          /* bigger headers */
+                }
+
+                table { 
+                    width: 90%; 
+                    border-collapse: collapse; 
+                    margin-top: 6px; 
+                    page-break-inside: auto; 
+                }
+                tr { page-break-inside: avoid; }
+
+                th, td { 
+                    padding: 4px 6px;         /* better readability */
+                    word-break: break-word;
+                    font-size: 19px;          /* bigger table text */
+                }
+
+                th { 
+                    font-weight: bold; 
+                    background-color: #f2f2f2; 
+                }
+
+                td.right { 
+                    text-align: right; 
+                }
+
+                .totals { 
+                    margin-top: 8px; 
+                    text-align: left; 
+                    font-weight: bold;
+                    font-size: 20px;
+                }
+
+                .footer { 
+                    margin-top: 10px; 
+                    text-align: left;
+                    font-size: 18px;
+                }
+            </style>");
+
             sb.Append("</head><body>");
 
             // Header
@@ -768,49 +885,56 @@ namespace TestAddIn
             sb.Append("</tr></thead><tbody>");
 
             // Table rows
+            decimal brutto = 0;
+            
             foreach (var order in orderList)
             {
-                sb.Append($"<tr><td>{order.count}x</td><td>{order.id}</td><td>{order.name}</td><td>{order.size}</td><td class='right'>€{order.price}</td></tr>");
+                // Format price with German notation (1,20)
+                string formattedPrice = $"€{order.price.ToString("F2").Replace(".", ",")}";
+                
+                sb.Append($"<tr><td>{order.count}x</td><td>{order.id}</td><td>{order.name}</td><td>{order.size}</td><td class='right'>{formattedPrice}</td></tr>");
+                
+                brutto += order.price;
 
                 // ✅ Print all extras under the item
                 foreach (var extra in order.extras)
                 {
-                    sb.Append($"<tr><td></td><td>{extra.id}</td><td>{extra.name}</td><td>-</td><td class='right'>€{extra.price:F2}</td></tr>");
+                    // Format extra price with German notation
+                    string extraFormattedPrice = $"€{extra.price.ToString("F2").Replace(".", ",")}";
+                    
+                    sb.Append($"<tr><td></td><td>{extra.id}</td><td>{extra.name}</td><td>-</td><td class='right'>{extraFormattedPrice}</td></tr>");
+                    
+                    brutto += Convert.ToDecimal(extra.price);
                 }
             }
 
             sb.Append("</tbody></table>");
 
             // Totals
-            decimal brutto = 0;
-
-            // Sum base prices (as shown in the table) + signed extras per row
-            foreach (var order in orderList)
-            {
-                if (decimal.TryParse(order.price.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal basePrice))
-                    brutto += basePrice;
-
-                foreach (var extra in order.extras)
-                    brutto += Convert.ToDecimal(extra.price, CultureInfo.InvariantCulture); // extras already signed (+/-)
-            }
-
             // Parse Rabatt safely and make it a positive deduction
             string rabText = this.labelLastDiscountValue.Text ?? "0";
             // keep digits, comma, dot, and minus for parsing, then normalize comma→dot
             rabText = Regex.Replace(rabText, @"[^\d\-,\.]", "").Replace(',', '.');
-
+            
             decimal rabatt = 0;
-            decimal.TryParse(rabText, NumberStyles.Any, CultureInfo.InvariantCulture, out rabatt);
-            rabatt = Math.Abs(rabatt); // ← critical: always treat as a deduction
-
+            if (decimal.TryParse(rabText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal parsedRabatt))
+            {
+                rabatt = Math.Abs(parsedRabatt);
+            }
+            
             decimal netto = brutto - rabatt;
             if (netto < 0) netto = 0; // optional safety
 
+            // Format all amounts with German notation
+            string bruttoFormatted = $"€{brutto.ToString("F2").Replace(".", ",")}";
+            string rabattFormatted = $"€{rabatt.ToString("F2").Replace(".", ",")}";
+            string nettoFormatted = $"€{netto.ToString("F2").Replace(".", ",")}";
+
             sb.Append("<div class='totals'>");
             sb.Append("<table style='width: 70%; border: none;'>");
-            sb.Append($"<tr><td style='font-weight: bold;'>Brutto:</td><td style='text-align: right; font-weight: bold;'>€{brutto:F2}</td></tr>");
-            sb.Append($"<tr><td style='font-weight: bold;'>Rabatt:</td><td style='text-align: right; font-weight: bold;'>€{rabatt:F2}</td></tr>");
-            sb.Append($"<tr><td style='font-weight: bold;'>Netto:</td><td style='text-align: right; font-weight: bold;'>€{netto:F2}</td></tr>");
+            sb.Append($"<tr><td style='font-weight: bold;'>Brutto:</td><td style='text-align: right; font-weight: bold;'>{bruttoFormatted}</td></tr>");
+            sb.Append($"<tr><td style='font-weight: bold;'>Rabatt:</td><td style='text-align: right; font-weight: bold;'>{rabattFormatted}</td></tr>");
+            sb.Append($"<tr><td style='font-weight: bold;'>Netto:</td><td style='text-align: right; font-weight: bold;'>{nettoFormatted}</td></tr>");
             sb.Append("</table>");
             sb.Append("</div>");
 
@@ -829,9 +953,33 @@ namespace TestAddIn
             };
             this.Controls.Add(wb);
         }
-
-
-
+        private decimal ParseDecimal(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return 0;
+            
+            // Remove any currency symbols and whitespace
+            input = input.Trim().Replace("€", "").Replace("$", "").Trim();
+            
+            // Handle both comma and dot as decimal separator
+            if (input.Contains(",") && input.Contains("."))
+            {
+                // If both separators exist, assume comma is decimal and dot is thousands
+                input = input.Replace(".", "").Replace(",", ".");
+            }
+            else if (input.Contains(","))
+            {
+                // German format: 1,20
+                input = input.Replace(",", ".");
+            }
+            // If only dot or no separator, leave as is (already in invariant format)
+            
+            // Try to parse
+            if (decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
+                return result;
+            
+            return 0;
+        }
         private void OrderTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
@@ -964,25 +1112,32 @@ namespace TestAddIn
         {
             // change kasset 
             change_kasset(sender, e);
-
             if (e.KeyCode == Keys.Enter)
             {
+                Customer.LoadCustomers("customers.txt");
                 var input = search.Text.Trim();
                 if (string.IsNullOrEmpty(input)) return;
 
                 if (input == "0")
                 {
-                    search.Text = "Abholer";
-                    this.knr.Text = "";
+                    search.Text = "Abholer 1";
+                    this.knr.Text = "0";
+                    this.lastOrdersTable.Focus();
+                    return;
+                }
+
+                if (input == "00")
+                {
+                    search.Text = "Abholer 2";
+                    this.knr.Text = "00";
                     this.lastOrdersTable.Focus();
                     return;
                 }
 
                 // ➤ 1) Check if input is a positive number (KNr search)
-                int inputIs;
-                if (int.TryParse(input, out inputIs) && inputIs > 0)
+                if (System.Text.RegularExpressions.Regex.IsMatch(input, @"^\d{1,5}$"))
                 {
-                   
+
                     var found = Customer.FindByKNr(input);
 
                     if (found != null)
@@ -1003,7 +1158,7 @@ namespace TestAddIn
                     else
                     {
 
-                        // Customer not found → offer to create
+                        // Customert found → offer to create
                         knr.Text = "";
                         name.Text = "";
                         phone.Text = "";
@@ -1051,25 +1206,30 @@ namespace TestAddIn
                 {
                     searchListBox.Items.Clear();
 
+                    // Set styles BEFORE adding items
+                    searchListBox.BackColor = Color.Black;
+                    searchListBox.ForeColor = Color.Yellow;
+                    searchListBox.Font = new Font(FontFamily.GenericMonospace, 18, FontStyle.Regular);
+                    searchListBox.ItemHeight = 32; // Should match your font size
+                    searchListBox.BorderStyle = BorderStyle.FixedSingle;
+                    searchListBox.Width = 1250;
+
                     // Header
                     searchListBox.Items.Add(
-                        string.Format("{0,-5} {1,-15} {2,-20} {3,-25} {4,-15}",
-                            "NO", "Str.No", "Name", "Str", "Tel")
+                        string.Format("  {0,-5} {1,-25} {2,-30} {3,-35}      ",
+                            "NO", "Name", "Str", "Tel")
                     );
-                    searchListBox.Items.Add(new string('-', 85));
+                    searchListBox.Items.Add(new string('-', 120));
 
                     int index = 1;
                     foreach (var customer in matches)
                     {
-                        string streetNumber = GetStreetNumber(customer.Str);
-                        string streetName = GetStreetName(customer.Str);
 
                         searchListBox.Items.Add(
-                            string.Format("{0,-5} {1,-6} {2,-15} {3,-20} {4,-10}",
+                            string.Format("  {0,-5} {1,-25} {2,-30} {3,-35}     ",
                                 index,
-                                streetNumber,
                                 customer.Name,
-                                streetName,
+                                customer.Str,
                                 customer.Tel
                             )
                         );
@@ -1077,13 +1237,12 @@ namespace TestAddIn
                     }
 
                     searchListBox.Tag = matches;
-                    searchListBox.ItemHeight = 32;
-                    searchListBox.BackColor = Color.Black;
-                    searchListBox.ForeColor = Color.White;
-                    searchListBox.BorderStyle = BorderStyle.FixedSingle;
-                    searchListBox.Width = 1000;
-                    searchListBox.Height = Math.Min(400, matches.Count * searchListBox.ItemHeight + 8);
-                    searchListBox.Font = new Font(FontFamily.GenericMonospace, 16);
+
+                    // Calculate height based on number of items
+                    int totalItems = matches.Count + 2; // +2 for header and separator line
+                    searchListBox.Height = Math.Min(600, totalItems * searchListBox.ItemHeight + 10);
+
+                    searchListBox.Margin = new Padding(4);
 
                     searchListBox.Left = (this.ClientSize.Width - searchListBox.Width) / 2;
                     searchListBox.Top = (this.ClientSize.Height - searchListBox.Height) / 2;
@@ -1094,7 +1253,32 @@ namespace TestAddIn
                 }
                 else
                 {
-                    MessageBox.Show("No matching addresses found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // Customer not found → offer to create
+                    knr.Text = "";
+                    name.Text = "";
+                    phone.Text = "";
+                    str.Text = "";
+                    ort.Text = "";
+
+                    var result = MessageBox.Show(
+                        "Kunde nicht gefunden. Möchten Sie einen neuen Kunden anlegen?",
+                        "Kunde anlegen",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        var allCustomers = Customer.GetAll();
+                        int maxKnr = allCustomers
+                            .Select(c => int.TryParse(c.KNr, out int num) ? num : 0)
+                            .DefaultIfEmpty(0)
+                            .Max();
+
+                        knr.ReadOnly = true;
+                        knr.Text = (maxKnr + 1).ToString();
+                        name.Focus();
+                    }
+                    return;
                 }
             }
 
@@ -1300,7 +1484,24 @@ namespace TestAddIn
         }
         private void customerListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (customerListBox == null || customerListBox.SelectedIndex < 0) return;
+            if (customerListBox == null) return;
+
+            // Prevent selecting the header (index 0)
+            if (customerListBox.SelectedIndex == 0)
+            {
+                // Move selection to first actual item
+                if (customerListBox.Items.Count > 1)
+                {
+                    customerListBox.SelectedIndex = 1;
+                }
+                else
+                {
+                    customerListBox.SelectedIndex = -1;
+                }
+                return;
+            }
+
+            if (customerListBox.SelectedIndex < 1) return;
 
             var input = str.Text.Trim().ToLower();
             var customers = Customer.GetAll();
@@ -1310,9 +1511,8 @@ namespace TestAddIn
                 .GroupBy(c => c.Name)
                 .Select(g => g.First())
                 .ToList();
-
-
         }
+
         private int FindStreetNumberIndex(string street)
         {
             for (int i = 0; i < street.Length; i++)
@@ -1331,6 +1531,40 @@ namespace TestAddIn
             }
             return -1;
         }
+
+
+        string ExtractStreetNameOnly(string fullStreet)
+        {
+            if (string.IsNullOrWhiteSpace(fullStreet))
+                return "";
+
+            fullStreet = fullStreet.Trim();
+
+            // Find the first occurrence of a digit
+            for (int i = 0; i < fullStreet.Length; i++)
+            {
+                if (char.IsDigit(fullStreet[i]))
+                {
+                    // We found the first number
+                    // Return everything BEFORE this position
+                    if (i == 0)
+                    {
+                        return ""; // Starts with a number - not a valid street name
+                    }
+
+                    string streetName = fullStreet.Substring(0, i).Trim();
+
+                    // Clean up any trailing special characters
+                    streetName = streetName.TrimEnd(' ', '.', ',', '-', '/', '\\', ':');
+
+                    return streetName;
+                }
+            }
+
+            // No numbers found - return the whole string
+            return fullStreet.TrimEnd(' ', '.', ',', '-', '/', '\\', ':');
+        }
+
         private void str_TextChanged(object sender, EventArgs e)
         {
             if (!isUserTypingStreet)
@@ -1339,18 +1573,19 @@ namespace TestAddIn
             if (customerListBox == null) return; // Safety check
 
             var input = str.Text.Trim();
+            // If user started typing a street number, do NOT show popup
+            if (input.Any(char.IsDigit))
+            {
+                customerListBox.Visible = false;
+                return;
+            }
+
             customerListBox.Items.Clear();
             customerListBox.Visible = false;
 
             if (input.Length >= 2) // Only process if at least 2 characters
             {
                 var customers = Customer.GetAll();
-                // Group customers by Name and take the first occurrence
-                var matches = customers
-                    .Where(c => c.Str != null && c.Str.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-                    .GroupBy(c => Normalize(c.Str)) // remove duplicated addresses 
-                    .Select(g => g.First())
-                    .ToList();
 
                 string Normalize(string text)
                 {
@@ -1365,10 +1600,63 @@ namespace TestAddIn
                         .ToArray()
                     ).ToLowerInvariant(); // case-insensitive comparison
                 }
+                // Group customers by Name and take the first occurrence
+                var matches = customers
+                    .Where(c => c.Str != null && c.Str.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(c => Normalize(c.Str)) // remove duplicated addresses 
+                    .Select(g => g.First())
+                    .ToList();
 
-                foreach (var customer in matches)
+                // Filter by input first
+                var filteredCustomers = customers
+                    .Where(c => c.Str != null && !string.IsNullOrWhiteSpace(c.Str) &&
+                                c.Str.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                // Extract street name ONLY text part (letters, spaces, dots, special chars) until first number
+                
+
+                // Group by street name only (without any numbers)
+                var streetGroups = filteredCustomers
+                    .Select(c => new
+                    {
+                        Customer = c,
+                        StreetNameOnly = ExtractStreetNameOnly(c.Str)
+                    })
+                    .Where(x => !string.IsNullOrWhiteSpace(x.StreetNameOnly)) // Filter out empty street names
+                    .GroupBy(x => x.StreetNameOnly.ToLowerInvariant()) // Case-insensitive grouping
+                    .Select(g => new
+                    {
+                        StreetNameOnly = g.First().StreetNameOnly, // Original case from first
+                        Count = g.Count(), // Number of addresses with this street name
+                        FirstFullAddress = g.First().Customer.Str, // First full address
+                        FirstCustomer = g.First().Customer
+                    })
+                    .OrderBy(g => g.StreetNameOnly) // Sort alphabetically
+                    .ToList();
+
+                // Clear and display
+                customerListBox.Items.Clear();
+
+                int index = 1;
+                customerListBox.Items.Add(
+                    string.Format("  {0,-8} {1,-8} {2,-35}  ",
+                        "ESC=Abbruch",
+                        "Eingabetaste=wählen",
+                        "gefunden=" + streetGroups.Count
+                    )
+                );
+                foreach (var group in streetGroups)
                 {
-                    customerListBox.Items.Add($"{customer.Str} ({customer.Ort})");
+                    // Format: index, count, street name (text only)
+                    customerListBox.Items.Add(
+                        string.Format("  {0,-8} {1,-8} {2,-35}  ",
+                            index,
+                            "Z="+group.Count,
+                            group.StreetNameOnly
+                            )
+                    );
+                    index++;
                 }
 
                 if (matches.Count > 0)
@@ -1385,57 +1673,58 @@ namespace TestAddIn
                     customerListBox.Left = (this.ClientSize.Width - customerListBox.Width) / 2;
                     customerListBox.Top = (this.ClientSize.Height - customerListBox.Height) / 2;
                     customerListBox.BackColor = Color.Black;
-                    customerListBox.ForeColor = Color.White;
-                    customerListBox.Font = new Font(FontFamily.GenericMonospace, 16, FontStyle.Regular);
+                    customerListBox.ForeColor = Color.Yellow;
+                    customerListBox.Margin = new Padding(4);
+                    customerListBox.Font = new Font(FontFamily.GenericMonospace, 18, FontStyle.Bold);
 
                     customerListBox.BringToFront(); // Ensure highest display priority
 
                     if (matches.Count == 1)
                     {
-                        // Single match found, populate fields
                         var customer = matches[0];
-                        str.Text = customer.Str;
+
+                        // remove street number
+                        string street = customer.Str;
+                        int streetNumberIndex = FindStreetNumberIndex(street);
+
+                        if (streetNumberIndex >= 0)
+                        {
+                            street = street.Substring(0, streetNumberIndex).TrimEnd() + " ";
+                        }
+
+                        str.Text = street;
                         ort.Text = customer.Ort;
                         customerListBox.Visible = false;
 
-                        // Set cursor to the street number
-                        int streetNumberIndex = FindStreetNumberIndex(customer.Str);
-                        if (streetNumberIndex >= 0)
-                        {
-                            int endIndex = streetNumberIndex;
-                            while (endIndex < customer.Str.Length &&
-                                   (char.IsLetterOrDigit(customer.Str[endIndex]) || customer.Str[endIndex] == ' '))
-                            {
-                                endIndex++;
-                            }
-                            str.SelectionStart = streetNumberIndex;
-                            str.SelectionLength = endIndex - streetNumberIndex;
-                        }
+                        // cursor at end (after space)
+                        str.SelectionStart = str.Text.Length;
+                        str.SelectionLength = 0;
+
                     }
                 }
             }
         }
 
-        private void str_KeyDown(object sender, KeyEventArgs e)
-        {
-            isUserTypingStreet = true;
-            change_kasset(sender, e);
-            
-            if (customerListBox.Visible && customerListBox.Items.Count > 0)
+            private void str_KeyDown(object sender, KeyEventArgs e)
             {
+                isUserTypingStreet = true;
+                change_kasset(sender, e);
+            
+                if (customerListBox.Visible && customerListBox.Items.Count > 0)
+                {
                 
-                if (e.KeyCode == Keys.Down)
-                {
-                    e.Handled = true;
-                    if (customerListBox.SelectedIndex < customerListBox.Items.Count - 1)
-                        customerListBox.SelectedIndex++;
-                }
-                else if (e.KeyCode == Keys.Up)
-                {
-                    e.Handled = true;
-                    if (customerListBox.SelectedIndex > 0)
-                        customerListBox.SelectedIndex--;
-                }
+                    if (e.KeyCode == Keys.Down)
+                    {
+                        e.Handled = true;
+                        if (customerListBox.SelectedIndex < customerListBox.Items.Count - 1)
+                            customerListBox.SelectedIndex++;
+                    }
+                    else if (e.KeyCode == Keys.Up)
+                    {
+                        e.Handled = true;
+                        if (customerListBox.SelectedIndex > 0)
+                            customerListBox.SelectedIndex--;
+                    }
                 else if (e.KeyCode == Keys.Enter)
                 {
                     e.Handled = true;
@@ -1444,30 +1733,38 @@ namespace TestAddIn
                     var customers = Customer.GetAll();
 
                     var filteredCustomers = customers
-                                            .Where(c => c.Str != null &&
-                                                        c.Str.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-                                            .GroupBy(c => Normalize(c.Str))   // SAME grouping as popup
-                                            .Select(g => g.First())
-                                            .ToList();
+                        .Where(c => c.Str != null && !string.IsNullOrWhiteSpace(c.Str) &&
+                                    c.Str.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
 
-                    string Normalize(string text)
+                    var streetGroups = filteredCustomers
+                        .Select(c => new
+                        {
+                            Customer = c,
+                            StreetNameOnly = ExtractStreetNameOnly(c.Str)
+                        })
+                        .Where(x => !string.IsNullOrWhiteSpace(x.StreetNameOnly)) // Filter out empty street names
+                        .GroupBy(x => x.StreetNameOnly.ToLowerInvariant()) // Case-insensitive grouping
+                        .Select(g => new
+                        {
+                            StreetNameOnly = g.First().StreetNameOnly, // Original case from first
+                            Count = g.Count(), // Number of addresses with this street name
+                            FirstFullAddress = g.First().Customer.Str, // First full address
+                            FirstCustomer = g.First().Customer
+                        })
+                        .OrderBy(g => g.StreetNameOnly) // Sort alphabetically
+                        .ToList();
+
+                    // Adjust index for header (index 0 is header, so subtract 1)
+                    int groupIndex = customerListBox.SelectedIndex - 1;
+
+                    // Compare with streetGroups.Count (not filteredCustomers.Count)
+                    if (groupIndex >= 0 && groupIndex < streetGroups.Count)
                     {
-                        if (string.IsNullOrWhiteSpace(text))
-                            return string.Empty;
+                        // Get the customer from streetGroups
+                        var selectedGroup = streetGroups[groupIndex];
+                        var selectedCustomer = selectedGroup.FirstCustomer;
 
-                        return new string(
-                            text.Trim()
-                                .Normalize(NormalizationForm.FormC)
-                                .Where(ch => !char.IsControl(ch))
-                                .ToArray()
-                        ).ToLowerInvariant();
-                    }
-
-
-
-                    if (customerListBox.SelectedIndex >= 0 && customerListBox.SelectedIndex < filteredCustomers.Count)
-                    {
-                        var selectedCustomer = filteredCustomers[customerListBox.SelectedIndex];
                         str.Text = selectedCustomer.Str;
                         ort.Text = selectedCustomer.Ort;
                         customerListBox.Visible = false;
@@ -1485,17 +1782,19 @@ namespace TestAddIn
                             }
                             str.SelectionStart = streetNumberIndex;
                             str.SelectionLength = endIndex - streetNumberIndex;
+                        }else
+                        {
+                            str.SelectionStart = str.TextLength;
                         }
-
                     }
                 }
                 else if (e.KeyCode == Keys.Escape)
-                {
-                    customerListBox.Visible = false;
-                    e.Handled = true;
+                    {
+                        customerListBox.Visible = false;
+                        e.Handled = true;
+                    }
                 }
             }
-        }
 
         private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -1526,21 +1825,23 @@ namespace TestAddIn
                 decimal totalExtra = 0;
                 decimal lastTotalDiscountValue = 0;
 
-                // Get discount percentage
-                int lastDiscountPercentage = 0;
-                int.TryParse(textBoxDiscount.Text.Trim(), out lastDiscountPercentage);
+                // Get discount percentage using ParseDecimal
+                string discountText = textBoxDiscount.Text.Trim();
+                decimal lastDiscountPercentage = ParseDecimal(discountText);
 
                 foreach (DataGridViewRow row in lastOrdersTable.Rows)
                 {
                     if (row.IsNewRow) continue;
 
                     // --- Count items ---
-                    if (int.TryParse(row.Cells["lastOrderAnz"].Value?.ToString(), out int anz))
-                        totalCount += anz;
+                    string anzText = row.Cells["lastOrderAnz"].Value?.ToString() ?? "0";
+                    int anz = (int)ParseDecimal(anzText);
+                    totalCount += anz;
 
                     // --- Base price ---
-                    if (decimal.TryParse(row.Cells["lastOrderPrice"].Value?.ToString(), out decimal basePrice))
-                        totalSum += basePrice;
+                    string priceText = row.Cells["lastOrderPrice"].Value?.ToString() ?? "0";
+                    decimal basePrice = ParseDecimal(priceText);
+                    totalSum += basePrice;
 
                     // --- Extras per row ---
                     string extraInput = row.Cells["LastOrderExtra"].Value?.ToString()?.Trim() ?? "";
@@ -1578,14 +1879,15 @@ namespace TestAddIn
                 // --- Calculate discount ---
                 lastTotalDiscountValue = ((totalSum + totalExtra) * lastDiscountPercentage) / 100;
 
-                // --- Update labels ---
+                // --- Update labels with German format (1,20) ---
                 labelCountValue.Text = totalCount.ToString();
 
                 decimal brutto = totalSum + totalExtra;
                 decimal netto = brutto - lastTotalDiscountValue;
 
-                labelSumValue.Text = $"€{netto:F2}";
-                labelLastDiscountValue.Text = $"(- €{Math.Abs(lastTotalDiscountValue):F2})";
+                // Always display with German format: 1,20
+                labelSumValue.Text = $"€{netto.ToString("F2").Replace(".", ",")}";
+                labelLastDiscountValue.Text = $"(- €{Math.Abs(lastTotalDiscountValue).ToString("F2").Replace(".", ",")})";
             }
             catch (Exception ex)
             {
@@ -1638,7 +1940,6 @@ namespace TestAddIn
         {
             // change kasset
             change_kasset(sender, e);
-
             // all keys should work 
             var key = e.KeyCode;
             if (key == Keys.F2)
@@ -1675,6 +1976,9 @@ namespace TestAddIn
             {
                 var customer = Customer.FindByKNr(this.knr.Text);
                 PrintOrder(lastOrdersTable, customer); // pass your customer and DGV
+            } else if (key == Keys.Escape)
+            {
+                customerListBox.Visible = false;
             }
         }
 
