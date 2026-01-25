@@ -68,7 +68,6 @@ namespace TestAddIn.customer
             }
         }
 
-
         public static Customer FindByKNr(string knr)
         {
             if (string.IsNullOrWhiteSpace(knr))
@@ -76,6 +75,32 @@ namespace TestAddIn.customer
 
             string clean = knr.Trim();
 
+            // Special cases for pickup customers
+            if (clean == "0")
+            {
+                return new Customer
+                {
+                    KNr = "0",
+                    Name = "Abholer 1",
+                    Tel = "089 1404490",
+                    Str = "Truderinger Str. 318",
+                    Ort = "81825 München",
+                };
+            }
+
+            if (clean == "00")
+            {
+                return new Customer
+                {
+                    KNr = "00",
+                    Name = "Abholer 2",
+                    Tel = "089 1404490",
+                    Str = "Truderinger Str. 318",
+                    Ort = "81825 München",
+                };
+            }
+
+            // Your existing customer lookup from database/list
             return customers.FirstOrDefault(c =>
                 (c.KNr?.Trim() ?? "") == clean
             );

@@ -2,9 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices; 
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -14,7 +16,6 @@ using TestAddIn.customer;
 using TestAddIn.extras;
 using TestAddIn.orders;
 using TestAddIn.shared;
-using System.Runtime.InteropServices; 
 
 
 namespace TestAddIn
@@ -475,8 +476,23 @@ namespace TestAddIn
                     dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
 
                     string articlID = dgv.Rows[curRow].Cells["lastOrderNr"].Value?.ToString()?.Trim() ?? "";
-                    var article = articles.FirstOrDefault(a => a.CompNum == articlID);
 
+                    // --- NEW: Diverse case (Nr == 0) ---
+                    if (articlID == "0")
+                    {
+                        dgv.Rows[curRow].Cells["lastOrderExtra"].Value = "Diverse#";
+
+                        dgv.CurrentCell = dgv.Rows[curRow].Cells[colLastOrderExtra];
+                        dgv.BeginEdit(true);
+
+                        if (dgv.EditingControl is TextBox tb)
+                            tb.SelectionStart = tb.Text.Length; // cursor after #
+
+                        return true;
+                    }
+
+                    var article = articles.FirstOrDefault(a => a.CompNum == articlID);
+                    
                     if (article != null)
                     {
                         dgv.Rows[curRow].Cells["lastOrderName"].Value = article.Name;
@@ -484,11 +500,12 @@ namespace TestAddIn
                     }
                     else
                     {
-                        //dgv.Rows[curRow].Cells["lastOrderName"].Value = "";
-                        MessageBox.Show("Artikel nicht gefunden. Bitte prüfen!", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        //dgv.CurrentCell = dgv.Rows[curRow].Cells["lastOrderNr"];
-                        //dgv.Rows[curRow].Cells["lastOrderName"].Value = "";
-                        //dgv.CurrentCell = dgv.Rows[curRow].Cells["lastOrderBez"];
+                        MessageBox.Show(
+                            "Artikel nicht gefunden. Bitte prüfen!" + article + "," + curCol,
+                            "Fehler",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning
+                        );
                     }
 
                     dgv.BeginEdit(true);
@@ -505,7 +522,7 @@ namespace TestAddIn
                     {
                         dgv.Rows[curRow].Cells["lastOrderSize"].Value = 'S';
                         LastOrderSize_KeyPress(dgv.EditingControl, new KeyPressEventArgs('S'));
-                    }
+                    }  
                 }
                 // --- Case 2: Enter on LastOrderExtra ---
                 // TODO: extra update
@@ -516,9 +533,9 @@ namespace TestAddIn
 
                     string extraInput = dgv.Rows[curRow].Cells[colLastOrderExtra].Value?.ToString()?.Trim();
                     string sizeText = dgv.Rows[curRow].Cells["lastOrderSize"].Value?.ToString()?.Trim();
-                    char sizeCode = 'S';
-                    if (!string.IsNullOrEmpty(sizeText))
-                        sizeCode = char.ToUpper(sizeText[0]);
+                    char sizeCode = !string.IsNullOrEmpty(sizeText)
+                        ? char.ToUpper(sizeText[0])
+                        : 'S';
 
                     if (!string.IsNullOrEmpty(extraInput))
                     {
@@ -526,86 +543,113 @@ namespace TestAddIn
                         {
                             string expr = extraInput.Replace(" ", "");
 
-                            // Ensure starts with a '+' or '-'
                             if (!expr.StartsWith("+") && !expr.StartsWith("-"))
                                 expr = "+" + expr;
 
-                            // Match all signed IDs (e.g., +10, -2, +3)
-                            var matches = System.Text.RegularExpressions.Regex.Matches(expr, @"[+-]\d+");
+                            var matches = System.Text.RegularExpressions.Regex.Matches(
+                                expr,
+                                @"[+-](?:\d+|Diverse#\d+(?:[.,]\d+)?)",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                            );
 
-                            decimal total = 0;
-                            var oldExtraIds = new List<int>();
+                            decimal totalExtraValue = 0;
+                            decimal diverseValueTotal = 0;
+
                             var newExtraIds = new List<int>();
 
                             foreach (System.Text.RegularExpressions.Match match in matches)
                             {
                                 string token = match.Value;
                                 bool isPositive = token.StartsWith("+");
-                                int id = int.Parse(token.Substring(1)); // remove +/-
+                                string valuePart = token.Substring(1);
 
-                                var extraItem = TestAddIn.extras.ExtrasManager.GetExtraByIdCode(id, sizeCode);
-
-                                if (extraItem != null)
+                                // --- CASE 1: Diverse ---
+                                if (valuePart.StartsWith("Diverse#", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    // Store for tracking
-                                    newExtraIds.Add(extraItem.Id);
+                                    string amountStr = valuePart
+                                        .Substring("Diverse#".Length)
+                                        .Replace(",", ".");
 
-                                    // Add or subtract based on sign
-                                    if (isPositive)
-                                        total += extraItem.Price; // assuming your extraItem has Value or Amount
-                                    else
-                                        total -= extraItem.Price;
+                                    if (decimal.TryParse(
+                                            amountStr,
+                                            System.Globalization.NumberStyles.Any,
+                                            System.Globalization.CultureInfo.InvariantCulture,
+                                            out decimal diverseValue))
+                                    {
+                                        diverseValueTotal += isPositive ? diverseValue : -diverseValue;
+                                    }
+
+                                    continue;
                                 }
-                                else
-                                {
-                                    MessageBox.Show($"Extra ID {id} not found!", "Warning",
-                                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                }
-                            }
 
-                            // Replace old extras with current ones
-                            var oldExtraId = dgv.Rows[curRow].Cells[colLastOrderExtra].Tag as int?;
-                            if (oldExtraId.HasValue)
-                            {
-                                var oldExtra = extras.FirstOrDefault(e => e.Id == oldExtraId.Value);
-                                if (oldExtra != null)
-                                    extras.Remove(oldExtra);
-                            }
-
-                            // Add any new extras that aren't already added
-                            foreach (int id in newExtraIds)
-                            {
-                                if (!extras.Any(e => e.Id == id))
+                                // --- CASE 2: Extra ID ---
+                                if (int.TryParse(valuePart, out int id))
                                 {
-                                    var extraItem = TestAddIn.extras.ExtrasManager.GetExtraByIdCode(id, sizeCode);
+                                    var extraItem = TestAddIn.extras.ExtrasManager
+                                        .GetExtraByIdCode(id, sizeCode);
+
                                     if (extraItem != null)
-                                        extras.Add(extraItem);
+                                    {
+                                        newExtraIds.Add(extraItem.Id);
+                                        totalExtraValue += isPositive
+                                            ? extraItem.Price
+                                            : -extraItem.Price;
+                                    }
+                                    else
+                                    {
+                                        MessageBox.Show(
+                                            $"Extra ID {id} not found!",
+                                            "Warning",
+                                            MessageBoxButtons.OK,
+                                            MessageBoxIcon.Warning
+                                        );
+                                    }
                                 }
                             }
 
-                            // Store the text input and tag it with the new IDs
-                            dgv.Rows[curRow].Cells[colLastOrderExtra].Value = extraInput;
-                            dgv.Rows[curRow].Cells[colLastOrderExtra].Tag = newExtraIds.LastOrDefault();
+                            // --- APPLY Diverse logic ---
+                            if (diverseValueTotal != 0)
+                            {
+                                dgv.Rows[curRow].Cells["lastOrderPrice"].Value =
+                                    diverseValueTotal.ToString("F2").Replace(".", ",");
 
-                            // MessageBox.Show(
-                            //$"Expression: {extraInput}\nCalculated Total Value: {total}",
-                            //"Extra Calculation",
-                            //MessageBoxButtons.OK,
-                            //MessageBoxIcon.Information
-                            //);
+                                // Clear extras because Diverse is a direct price
+                                extras.Clear();
+                            }
+                            else
+                            {
+                                // --- Update extras list normally ---
+                                extras.RemoveAll(e => !newExtraIds.Contains(e.Id));
+
+                                foreach (int id in newExtraIds)
+                                {
+                                    if (!extras.Any(e => e.Id == id))
+                                    {
+                                        var extraItem = TestAddIn.extras.ExtrasManager
+                                            .GetExtraByIdCode(id, sizeCode);
+
+                                        if (extraItem != null)
+                                            extras.Add(extraItem);
+                                    }
+                                }
+                            }
+
+                            // Persist input + tag
+                            dgv.Rows[curRow].Cells[colLastOrderExtra].Value = extraInput;
+                            dgv.Rows[curRow].Cells[colLastOrderExtra].Tag =
+                                newExtraIds.LastOrDefault();
                         }
                         catch
                         {
-                            dgv.Rows[curRow].Cells["lastOrderExtra"].Value = 0;
-                            MessageBox.Show("Invalid input!", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            dgv.Rows[curRow].Cells[colLastOrderExtra].Value = 0;
                         }
                     }
                     else
                     {
-                        dgv.Rows[curRow].Cells["lastOrderExtra"].Value = 0;
+                        dgv.Rows[curRow].Cells[colLastOrderExtra].Value = 0;
                     }
 
-                    // Move to next row, first column
+                    // Move to next row
                     int nextRow = curRow + 1;
                     int firstColIndex = 0;
 
@@ -619,8 +663,8 @@ namespace TestAddIn
                 }
 
 
-                // --- Case 3: Other columns → Enter acts like Tab ---
-                SendKeys.Send("{TAB}");
+                    // --- Case 3: Other columns → Enter acts like Tab ---
+                    SendKeys.Send("{TAB}");
                 return true;
             }
             else if (key == Keys.F6)
@@ -725,31 +769,112 @@ namespace TestAddIn
             dgv.BeginEdit(true);
         }
 
+        private decimal ParseDecimal(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return 0;
 
+            // Remove any currency symbols, whitespace, and unwanted characters
+            input = input.Trim()
+                        .Replace("€", "")
+                        .Replace("$", "")
+                        .Replace(" ", "")
+                        .Trim();
+
+            // If empty after cleaning, return 0
+            if (string.IsNullOrEmpty(input))
+                return 0;
+
+            // Original logic from HTML version:
+            // "keep digits, comma, dot, and minus for parsing, then normalize comma→dot"
+            string cleanInput = System.Text.RegularExpressions.Regex.Replace(input, @"[^\d\-,\.]", "");
+
+            // Handle multiple minus signs or plus signs
+            if (cleanInput.StartsWith("--")) cleanInput = cleanInput.Substring(1);
+            if (cleanInput.StartsWith("++")) cleanInput = cleanInput.Substring(1);
+
+            // Handle empty after cleaning
+            if (string.IsNullOrEmpty(cleanInput))
+                return 0;
+
+            // Handle cases like "-" or "+" alone
+            if (cleanInput == "-" || cleanInput == "+" || cleanInput == "," || cleanInput == ".")
+                return 0;
+
+            // Original logic: normalize comma to dot for parsing
+            cleanInput = cleanInput.Replace(',', '.');
+
+            // Handle multiple dots (only keep first as decimal separator)
+            int dotCount = cleanInput.Count(c => c == '.');
+            if (dotCount > 1)
+            {
+                int firstDot = cleanInput.IndexOf('.');
+                cleanInput = cleanInput.Substring(0, firstDot + 1) +
+                            cleanInput.Substring(firstDot + 1).Replace(".", "");
+            }
+
+            // Handle trailing dot or minus
+            if (cleanInput.EndsWith("."))
+                cleanInput = cleanInput.TrimEnd('.');
+            if (cleanInput.EndsWith("-"))
+                cleanInput = cleanInput.TrimEnd('-');
+
+            // Special case: input is just a minus sign
+            if (cleanInput == "-")
+                return 0;
+
+            // Try parsing with invariant culture
+            if (decimal.TryParse(cleanInput,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out decimal result))
+            {
+                return result;
+            }
+
+            // Fallback: try with current culture
+            if (decimal.TryParse(cleanInput, out result))
+            {
+                return result;
+            }
+
+            return 0;
+        }
         //TODO> update this vlue 
         private void PrintOrder(DataGridView dgv, Customer customer)
         {
-            // Collect order list from DGV
+            // First, collect order data like in the original method
             var orderList = new List<dynamic>();
+            decimal totalBrutto = 0;
 
             foreach (DataGridViewRow row in dgv.Rows)
             {
                 if (row.IsNewRow) continue;
 
-                // Parse total and discount safely using ParseDecimal
-                decimal totalValue = ParseDecimal(this.labelSumValue.Text);
-                decimal discountValue = ParseDecimal(this.labelLastDiscountValue.Text?.ToString() ?? "0");
-
+                // FIXED: Use correct DataGridView column names based on original code
                 // Read extra input expression (can contain +10-5+2 etc.)
                 string extraInput = row.Cells["LastOrderExtra"].Value?.ToString()?.Trim() ?? "";
 
-                // Get size code as char (first character, uppercase)
+                // Get size - use original logic from HTML version
                 string sizeStr = row.Cells["lastOrderSize"].Value?.ToString() ?? "";
-                char sizeCode = !string.IsNullOrWhiteSpace(sizeStr)
-                    ? char.ToUpper(sizeStr[0])
-                    : 'S';
+                string size = !string.IsNullOrWhiteSpace(sizeStr) ? sizeStr.ToUpper() : "-";
 
-                // ✅ Parse multiple extras (like +10-5+2)
+                // Parse quantity
+                string countText = row.Cells["lastOrderAnz"].Value?.ToString() ?? "0";
+                decimal countValue = ParseDecimal(countText);
+
+                // Parse price
+                string priceText = row.Cells["lastOrderPrice"].Value?.ToString() ?? "0";
+                decimal priceValue = ParseDecimal(priceText);
+
+                // Get item name - use original logic
+                string rawName = row.Cells["lastOrderName"].Value?.ToString() ?? "";
+                string name = (rawName == "-") ? "Diverse#" : rawName;
+
+                // Get item ID
+                string id = row.Cells["lastOrderNr"].Value?.ToString() ?? "";
+
+                // Parse multiple extras (like +10-5+2) - FIXED: use sizeCode for extras lookup
                 var extrasList = new List<dynamic>();
                 if (!string.IsNullOrEmpty(extraInput))
                 {
@@ -765,16 +890,21 @@ namespace TestAddIn
                         bool isPositive = token.StartsWith("+");
                         int extraId = int.Parse(token.Substring(1));
 
+                        // FIXED: Use size code (first char) for extras lookup
+                        char sizeCode = !string.IsNullOrEmpty(sizeStr) && sizeStr.Length > 0
+                            ? char.ToUpper(sizeStr[0])
+                            : 'S';
+
                         var extraObj = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
                         if (extraObj != null)
                         {
-                            // Add or subtract depending on sign
-                            var extraDisplayName = (isPositive ? "+" : "−") + extraObj.Name;
+                            // Use proper minus sign (en dash) like in second image
+                            var extraDisplayName = (isPositive ? "+" : "–") + extraObj.Name;
                             var extraDisplayPrice = isPositive ? extraObj.Price : -extraObj.Price;
 
                             extrasList.Add(new
                             {
-                                id = extraObj.Id,
+                                id = extraId.ToString(),
                                 name = extraDisplayName,
                                 price = extraDisplayPrice
                             });
@@ -782,203 +912,212 @@ namespace TestAddIn
                     }
                 }
 
-                // Parse quantity and price safely
-                string countText = row.Cells["lastOrderAnz"].Value?.ToString() ?? "0";
-                decimal countValue = ParseDecimal(countText);
-                
-                string priceText = row.Cells["lastOrderPrice"].Value?.ToString() ?? "0";
-                decimal priceValue = ParseDecimal(priceText);
+                // Calculate totals
+                decimal itemTotal = priceValue;
+                foreach (var extra in extrasList)
+                {
+                    itemTotal += Convert.ToDecimal(extra.price);
+                }
+                totalBrutto += itemTotal;
 
-                // Build order entry
+                // Build order entry - FIXED: Include all necessary fields
                 var order = new
                 {
                     count = countText,
-                    id = row.Cells["lastOrderNr"].Value?.ToString() ?? "",
-                    name = row.Cells["lastOrderName"].Value?.ToString() ?? "",
-                    price = priceValue,
-                    size = sizeCode,
-                    extras = extrasList
+                    id = id,
+                    name = name,
+                    price = priceValue,  // Base price without extras
+                    size = size,
+                    extras = extrasList,
+                    totalWithExtras = itemTotal  // For verification
                 };
 
                 orderList.Add(order);
             }
 
-            // --- Build HTML for printing ---
-            var sb = new StringBuilder();
-            sb.Append("<html><head>");
-            sb.Append(@"
-            <style>
-                @page { 
-                    margin: 5mm !important;   /* smaller paper margins */
-                    size: auto;
-                }
-
-                body { 
-                    font-family: Arial, sans-serif; 
-                    font-size: 22px;          /* ⬅ bigger base font */
-                    line-height: 1.5;
-                    margin: 0 !important; 
-                    padding: 0 !important;
-                    width: 100%;
-                }
-
-                .print-container {
-                    margin: 0;
-                    padding: 5px;             /* less inner padding */
-                    width: 100%;
-                    box-sizing: border-box;
-                }
-
-                h2 { 
-                    font-weight: bold; 
-                    margin-bottom: 4px;
-                    font-size: 22px;          /* bigger headers */
-                }
-
-                table { 
-                    width: 90%; 
-                    border-collapse: collapse; 
-                    margin-top: 6px; 
-                    page-break-inside: auto; 
-                }
-                tr { page-break-inside: avoid; }
-
-                th, td { 
-                    padding: 4px 6px;         /* better readability */
-                    word-break: break-word;
-                    font-size: 19px;          /* bigger table text */
-                }
-
-                th { 
-                    font-weight: bold; 
-                    background-color: #f2f2f2; 
-                }
-
-                td.right { 
-                    text-align: right; 
-                }
-
-                .totals { 
-                    margin-top: 8px; 
-                    text-align: left; 
-                    font-weight: bold;
-                    font-size: 20px;
-                }
-
-                .footer { 
-                    margin-top: 10px; 
-                    text-align: left;
-                    font-size: 18px;
-                }
-            </style>");
-
-            sb.Append("</head><body>");
-
-            // Header
-            sb.Append($"<div><strong>Datum:</strong> {DateTime.Now:dd.MM.yyyy HH:mm:ss}</div>");
-            sb.Append($"<div><strong>KNr:</strong> {customer.KNr} - <strong>Name:</strong> {customer.Name} - <strong>Tel:</strong> {customer.Tel}</div>");
-            sb.Append($"<div><strong>Add:</strong> {customer.Str}, {customer.Ort}</div>");
-
-            // Table header
-            sb.Append("<table><thead><tr>");
-            sb.Append("<th>Anz</th><th>Nr.</th><th>Bez.</th><th>Size</th><th>Preise</th>");
-            sb.Append("</tr></thead><tbody>");
-
-            // Table rows
-            decimal brutto = 0;
-            
-            foreach (var order in orderList)
-            {
-                // Format price with German notation (1,20)
-                string formattedPrice = $"€{order.price.ToString("F2").Replace(".", ",")}";
-                
-                sb.Append($"<tr><td>{order.count}x</td><td>{order.id}</td><td>{order.name}</td><td>{order.size}</td><td class='right'>{formattedPrice}</td></tr>");
-                
-                brutto += order.price;
-
-                // ✅ Print all extras under the item
-                foreach (var extra in order.extras)
-                {
-                    // Format extra price with German notation
-                    string extraFormattedPrice = $"€{extra.price.ToString("F2").Replace(".", ",")}";
-                    
-                    sb.Append($"<tr><td></td><td>{extra.id}</td><td>{extra.name}</td><td>-</td><td class='right'>{extraFormattedPrice}</td></tr>");
-                    
-                    brutto += Convert.ToDecimal(extra.price);
-                }
-            }
-
-            sb.Append("</tbody></table>");
-
-            // Totals
-            // Parse Rabatt safely and make it a positive deduction
+            // Parse discount like in original - FIXED: Use same logic
             string rabText = this.labelLastDiscountValue.Text ?? "0";
-            // keep digits, comma, dot, and minus for parsing, then normalize comma→dot
-            rabText = Regex.Replace(rabText, @"[^\d\-,\.]", "").Replace(',', '.');
-            
+            rabText = System.Text.RegularExpressions.Regex.Replace(rabText, @"[^\d\-,\.]", "").Replace(',', '.');
+
             decimal rabatt = 0;
-            if (decimal.TryParse(rabText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal parsedRabatt))
+            if (decimal.TryParse(rabText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal parsedRabatt))
             {
                 rabatt = Math.Abs(parsedRabatt);
             }
+
+            decimal netto = totalBrutto - rabatt;
+            if (netto < 0) netto = 0;
+
+            // Debug output
+            Console.WriteLine($"Total Brutto: {totalBrutto}, Rabatt: {rabatt}, Netto: {netto}");
+            Console.WriteLine($"Order count: {orderList.Count}");
+
+            // Now print with the style from second image
+            PrintDocument pd = new PrintDocument();
             
-            decimal netto = brutto - rabatt;
-            if (netto < 0) netto = 0; // optional safety
+            pd.PrintPage += (s, e) => PrintPageHandler(e, orderList, customer, totalBrutto, rabatt, netto);
 
-            // Format all amounts with German notation
-            string bruttoFormatted = $"€{brutto.ToString("F2").Replace(".", ",")}";
-            string rabattFormatted = $"€{rabatt.ToString("F2").Replace(".", ",")}";
-            string nettoFormatted = $"€{netto.ToString("F2").Replace(".", ",")}";
-
-            sb.Append("<div class='totals'>");
-            sb.Append("<table style='width: 70%; border: none;'>");
-            sb.Append($"<tr><td style='font-weight: bold;'>Brutto:</td><td style='text-align: right; font-weight: bold;'>{bruttoFormatted}</td></tr>");
-            sb.Append($"<tr><td style='font-weight: bold;'>Rabatt:</td><td style='text-align: right; font-weight: bold;'>{rabattFormatted}</td></tr>");
-            sb.Append($"<tr><td style='font-weight: bold;'>Netto:</td><td style='text-align: right; font-weight: bold;'>{nettoFormatted}</td></tr>");
-            sb.Append("</table>");
-            sb.Append("</div>");
-
-            // Footer
-            sb.Append("<div class='footer'>Vielen Dank für Ihre Bestellung</div>");
-            sb.Append("</body></html>");
-
-            // --- Print using WebBrowser ---
-            var wb = new WebBrowser
+            try
             {
-                DocumentText = sb.ToString()
-            };
-            wb.DocumentCompleted += (s, e) =>
+                pd.Print();
+            }
+            catch (Exception ex)
             {
-                wb.Print();
-            };
-            this.Controls.Add(wb);
+                MessageBox.Show("Fehler beim Drucken: " + ex.Message);
+            }
         }
-        private decimal ParseDecimal(string input)
+
+        private void PrintPageHandler(PrintPageEventArgs e, List<dynamic> orderList, Customer customer, decimal brutto, decimal rabatt, decimal netto)
         {
-            if (string.IsNullOrWhiteSpace(input))
-                return 0;
-            
-            // Remove any currency symbols and whitespace
-            input = input.Trim().Replace("€", "").Replace("$", "").Trim();
-            
-            // Handle both comma and dot as decimal separator
-            if (input.Contains(",") && input.Contains("."))
+            // Margins
+            int topMargin = 10;
+            int leftMargin = 6;
+            int rightMargin = e.MarginBounds.Right - 5;
+            int bottomMargin = 8;
+
+            using (Font font = new Font("Arial", 12))
+            using (Font smallFont = new Font("Arial", 10))
+            using (Font boldFont = new Font("Arial", 12, FontStyle.Bold)) // For totals
             {
-                // If both separators exist, assume comma is decimal and dot is thousands
-                input = input.Replace(".", "").Replace(",", ".");
+                int lineHeight = (int)font.GetHeight(e.Graphics) + 4;
+                int smallLineHeight = (int)smallFont.GetHeight(e.Graphics) + 3;
+                int yPos = topMargin;
+
+                // Define column widths - adjusted for better spacing
+                int col1Width = 60;   // Anz
+                int col2Width = 50;   // Nr.
+                int col3Width = 280;  // Bez. (wider for long names)
+                int col4Width = 50;   // Size
+
+                int colStart = leftMargin;
+
+                // Header - FIXED: Use "KNr:" without space
+                e.Graphics.DrawString($"Datum: {DateTime.Now:dd.MM.yyyy HH:mm:ss}", font, Brushes.Black, leftMargin, yPos);
+                yPos += lineHeight;
+
+                string nameTelLine = $"KNr: {customer.KNr} - Name: {customer.Name}"; // NO SPACE in "KNr:"
+                if (!string.IsNullOrEmpty(customer.Tel) && customer.Tel != "0")
+                {
+                    nameTelLine += $" - Tel: {customer.Tel}";
+                }
+                e.Graphics.DrawString(nameTelLine, font, Brushes.Black, leftMargin, yPos);
+                yPos += lineHeight;
+
+                e.Graphics.DrawString($"Add: {customer.Str}, {customer.Ort}", font, Brushes.Black, leftMargin, yPos);
+                yPos += lineHeight * 2;
+
+                // Table header - FIXED: Proper column separation
+                // Draw vertical separators like in first image
+                float headerY = yPos - 2; // Slightly above the line
+
+                e.Graphics.DrawString("Anz", font, Brushes.Black, colStart, yPos);
+                e.Graphics.DrawLine(Pens.Black, colStart + col1Width, headerY, colStart + col1Width, yPos + lineHeight);
+
+                e.Graphics.DrawString("Nr.", font, Brushes.Black, colStart + col1Width + 2, yPos);
+                e.Graphics.DrawLine(Pens.Black, colStart + col1Width + col2Width, headerY, colStart + col1Width + col2Width, yPos + lineHeight);
+
+                e.Graphics.DrawString("Bez.", font, Brushes.Black, colStart + col1Width + col2Width + 2, yPos);
+                e.Graphics.DrawLine(Pens.Black, colStart + col1Width + col2Width + col3Width, headerY, colStart + col1Width + col2Width + col3Width, yPos + lineHeight);
+
+                e.Graphics.DrawString("Size", font, Brushes.Black, colStart + col1Width + col2Width + col3Width + 2, yPos);
+                e.Graphics.DrawLine(Pens.Black, colStart + col1Width + col2Width + col3Width + col4Width, headerY, colStart + col1Width + col2Width + col3Width + col4Width, yPos + lineHeight);
+
+                e.Graphics.DrawString("Preise", font, Brushes.Black, colStart + col1Width + col2Width + col3Width + col4Width + 2, yPos);
+
+                yPos += lineHeight;
+
+                // Draw horizontal line under header
+                e.Graphics.DrawLine(Pens.Black, leftMargin, yPos, rightMargin, yPos);
+                yPos += 4;
+
+                // Table rows
+                foreach (var order in orderList)
+                {
+                    // Main item row
+                    float xPos = colStart;
+                    e.Graphics.DrawString($"{order.count}x", font, Brushes.Black, xPos, yPos);
+
+                    xPos += col1Width;
+                    e.Graphics.DrawString($"{order.id}", font, Brushes.Black, xPos, yPos);
+
+                    xPos += col2Width;
+                    e.Graphics.DrawString($"{order.name}", font, Brushes.Black, xPos, yPos);
+
+                    xPos += col3Width;
+                    e.Graphics.DrawString($"{order.size}", font, Brushes.Black, xPos, yPos);
+
+                    xPos += col4Width;
+                    string formattedPrice = $"€{order.price.ToString("F2").Replace(".", ",")}";
+                    e.Graphics.DrawString(formattedPrice, font, Brushes.Black, xPos, yPos);
+
+                    yPos += lineHeight;
+
+                    // Extras rows - FIXED: Match first image format
+                    foreach (var extra in order.extras)
+                    {
+                        // Format: Empty Anz, ID in Nr., Name in Bez., "-" in Size, Price in Preise
+                        xPos = colStart;
+                        e.Graphics.DrawString("", font, Brushes.Black, xPos, yPos); // Empty Anz
+
+                        xPos += col1Width;
+                        e.Graphics.DrawString($"{extra.id}", smallFont, Brushes.Black, xPos, yPos); // ID
+
+                        xPos += col2Width;
+                        e.Graphics.DrawString($"{extra.name}", smallFont, Brushes.Black, xPos, yPos); // Name
+
+                        xPos += col3Width;
+                        e.Graphics.DrawString("-", smallFont, Brushes.Black, xPos, yPos); // Size = "-"
+
+                        xPos += col4Width;
+                        string extraFormattedPrice = $"€{Convert.ToDecimal(extra.price).ToString("F2").Replace(".", ",")}";
+                        e.Graphics.DrawString(extraFormattedPrice, smallFont, Brushes.Black, xPos, yPos); // Price
+
+                        yPos += smallLineHeight;
+                    }
+                }
+
+                // Totals section
+                yPos += lineHeight / 2;
+
+                // Draw line before totals
+                e.Graphics.DrawLine(Pens.Black, leftMargin, yPos, rightMargin, yPos);
+                yPos += 8;
+
+                // Format totals
+                string bruttoFormatted = $"€{brutto.ToString("F2").Replace(".", ",")}";
+                string rabattFormatted = $"- €{rabatt.ToString("F2").Replace(".", ",")}";
+                string nettoFormatted = $"€{netto.ToString("F2").Replace(".", ",")}";
+
+                // Calculate positions - FIXED: Make totals more prominent
+                float labelX = leftMargin + 10;
+
+                // Calculate right position for prices
+                SizeF bruttoSize = e.Graphics.MeasureString(bruttoFormatted, boldFont);
+                SizeF rabattSize = e.Graphics.MeasureString(rabattFormatted, boldFont);
+                SizeF nettoSize = e.Graphics.MeasureString(nettoFormatted, boldFont);
+
+                float maxPriceWidth = Math.Max(Math.Max(bruttoSize.Width, rabattSize.Width), nettoSize.Width);
+                float priceX = rightMargin - maxPriceWidth;
+
+                // Draw totals with bold font
+                e.Graphics.DrawString($"Brutto:", boldFont, Brushes.Black, labelX, yPos);
+                e.Graphics.DrawString(bruttoFormatted, boldFont, Brushes.Black, priceX, yPos);
+                yPos += lineHeight;
+
+                e.Graphics.DrawString($"Rabatt:", boldFont, Brushes.Black, labelX, yPos);
+                e.Graphics.DrawString(rabattFormatted, boldFont, Brushes.Black, priceX, yPos);
+                yPos += lineHeight;
+
+                e.Graphics.DrawString($"Netto:", boldFont, Brushes.Black, labelX, yPos);
+                e.Graphics.DrawString(nettoFormatted, boldFont, Brushes.Black, priceX, yPos);
+
+                // Footer
+                yPos += lineHeight * 2;
+                e.Graphics.DrawString("Vielen Dank für Ihre Bestellung", font, Brushes.Black, leftMargin, yPos);
+
+                // Check if we need another page
+                e.HasMorePages = (yPos + bottomMargin > e.MarginBounds.Bottom);
             }
-            else if (input.Contains(","))
-            {
-                // German format: 1,20
-                input = input.Replace(",", ".");
-            }
-            // If only dot or no separator, leave as is (already in invariant format)
-            
-            // Try to parse
-            if (decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
-                return result;
-            
-            return 0;
         }
         private void OrderTextBox_KeyDown(object sender, KeyEventArgs e)
         {
@@ -1019,18 +1158,18 @@ namespace TestAddIn
                         KNr = knr.Text.Trim(),
                         Anz = row.Cells[0].Value?.ToString()?.Trim() ?? "",
                         Nr = row.Cells[1].Value?.ToString()?.Trim() ?? "",
-                        Bez = row.Cells[2].Value?.ToString()?.Trim() ?? "",
-                        Size = row.Cells[3].Value?.ToString()?.Trim() ?? "",
+                        Bez = row.Cells[2].Value?.ToString()?.Trim() ?? "Diverse#",
+                        Size = row.Cells[3].Value?.ToString()?.Trim() ?? "-",
                         Extra = row.Cells[4].Value?.ToString()?.Trim() ?? "",
                         Price = row.Cells[5].Value?.ToString()?.Trim() ?? "",
                         Rabbat = this.textBoxDiscount.Text.Trim()
                     };
 
                     if (!string.IsNullOrWhiteSpace(order.Anz) &&
-                        !string.IsNullOrWhiteSpace(order.Nr) &&
-                        !string.IsNullOrWhiteSpace(order.Bez) &&
-                        !string.IsNullOrWhiteSpace(order.Size) &&
-                        !string.IsNullOrWhiteSpace(order.Price))
+                         !string.IsNullOrWhiteSpace(order.Nr) &&
+                         !string.IsNullOrWhiteSpace(order.Bez) &&
+                         !string.IsNullOrWhiteSpace(order.Size) &&
+                         !string.IsNullOrWhiteSpace(order.Price))
                     {
                         ordersForKnr.Add(order);
                     }
@@ -1122,6 +1261,7 @@ namespace TestAddIn
                 {
                     search.Text = "Abholer 1";
                     this.knr.Text = "0";
+                    this.name.Text = "Abholer 1";
                     this.lastOrdersTable.Focus();
                     return;
                 }
@@ -1692,7 +1832,7 @@ namespace TestAddIn
                             street = street.Substring(0, streetNumberIndex).TrimEnd() + " ";
                         }
 
-                        str.Text = street;
+                        str.Text = ExtractStreetNameOnly(street);
                         ort.Text = customer.Ort;
                         customerListBox.Visible = false;
 
@@ -1772,6 +1912,7 @@ namespace TestAddIn
                         str.Focus();
                         // Set cursor to the street number
                         int streetNumberIndex = FindStreetNumberIndex(selectedCustomer.Str);
+
                         if (streetNumberIndex >= 0)
                         {
                             int endIndex = streetNumberIndex;
@@ -1780,12 +1921,22 @@ namespace TestAddIn
                             {
                                 endIndex++;
                             }
+
+                            // Remove the street number part
+                            string updatedText =
+                                selectedCustomer.Str.Remove(streetNumberIndex, endIndex - streetNumberIndex);
+
+                            str.Text = updatedText.TrimStart();
+
+                            // Place cursor where the number was
                             str.SelectionStart = streetNumberIndex;
-                            str.SelectionLength = endIndex - streetNumberIndex;
-                        }else
+                        }
+                        else
                         {
+                            // If no number found, place cursor at the end
                             str.SelectionStart = str.TextLength;
                         }
+
                     }
                 }
                 else if (e.KeyCode == Keys.Escape)
@@ -1894,7 +2045,6 @@ namespace TestAddIn
                 MessageBox.Show("Error calculating totals: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
 
         private void textBoxDiscount_TextChanged(object sender, EventArgs e)
         {
