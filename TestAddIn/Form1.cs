@@ -548,7 +548,7 @@ namespace TestAddIn
 
                             var matches = System.Text.RegularExpressions.Regex.Matches(
                                 expr,
-                                @"[+-](?:\d+|Diverse#\d+(?:[.,]\d+)?)",
+                                @"([+-]?\d+|Diverse#\d+(?:[.,]\d+)?)",
                                 System.Text.RegularExpressions.RegexOptions.IgnoreCase
                             );
 
@@ -560,9 +560,19 @@ namespace TestAddIn
                             foreach (System.Text.RegularExpressions.Match match in matches)
                             {
                                 string token = match.Value;
-                                bool isPositive = token.StartsWith("+");
-                                string valuePart = token.Substring(1);
-
+                                bool isPositive;
+                                string valuePart;
+                                if (token.StartsWith("+") || token.StartsWith("-"))
+                                {
+                                    isPositive = token.StartsWith("+");
+                                    valuePart = token.Substring(1);
+                                }
+                                else
+                                {
+                                    // Default to positive if no sign
+                                    isPositive = true;
+                                    valuePart = token;
+                                }
                                 // --- CASE 1: Diverse ---
                                 if (valuePart.StartsWith("Diverse#", StringComparison.OrdinalIgnoreCase))
                                 {
@@ -674,6 +684,7 @@ namespace TestAddIn
             }
             else if (key == Keys.F2)
             {
+                SaveTableOrdersToFile();
                 dgv.Rows.Clear();
                 extras.Clear();
                 this.search.Focus();
@@ -882,32 +893,50 @@ namespace TestAddIn
                     if (!expr.StartsWith("+") && !expr.StartsWith("-"))
                         expr = "+" + expr;
 
-                    var matches = System.Text.RegularExpressions.Regex.Matches(expr, @"[+-]\d+");
+                    var matches = System.Text.RegularExpressions.Regex.Matches(expr, @"([+-]?\d+|Diverse#\d+(?:[.,]\d+)?)");
 
                     foreach (System.Text.RegularExpressions.Match match in matches)
                     {
                         string token = match.Value;
-                        bool isPositive = token.StartsWith("+");
-                        int extraId = int.Parse(token.Substring(1));
 
-                        // FIXED: Use size code (first char) for extras lookup
-                        char sizeCode = !string.IsNullOrEmpty(sizeStr) && sizeStr.Length > 0
-                            ? char.ToUpper(sizeStr[0])
-                            : 'S';
+                        // FIX: Handle tokens that don't start with + or -
+                        bool isPositive;
+                        string valuePart;
 
-                        var extraObj = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
-                        if (extraObj != null)
+                        if (token.StartsWith("+") || token.StartsWith("-"))
                         {
-                            // Use proper minus sign (en dash) like in second image
-                            var extraDisplayName = (isPositive ? "+" : "–") + extraObj.Name;
-                            var extraDisplayPrice = isPositive ? extraObj.Price : -extraObj.Price;
+                            isPositive = token.StartsWith("+");
+                            valuePart = token.Substring(1);
+                        }
+                        else
+                        {
+                            // Default to positive if no sign
+                            isPositive = true;
+                            valuePart = token;
+                        }
 
-                            extrasList.Add(new
+                        // Now parse the ID from valuePart
+                        if (int.TryParse(valuePart, out int extraId))
+                        {
+                            // FIXED: Use size code (first char) for extras lookup
+                            char sizeCode = !string.IsNullOrEmpty(sizeStr) && sizeStr.Length > 0
+                                ? char.ToUpper(sizeStr[0])
+                                : 'S';
+
+                            var extraObj = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
+                            if (extraObj != null)
                             {
-                                id = extraId.ToString(),
-                                name = extraDisplayName,
-                                price = extraDisplayPrice
-                            });
+                                // Use proper minus sign (en dash) like in second image
+                                var extraDisplayName = (isPositive ? "+" : "–") + extraObj.Name;
+                                var extraDisplayPrice = isPositive ? extraObj.Price : -extraObj.Price;
+
+                                extrasList.Add(new
+                                {
+                                    id = extraId.ToString(),
+                                    name = extraDisplayName,
+                                    price = extraDisplayPrice
+                                });
+                            }
                         }
                     }
                 }
@@ -975,19 +1004,19 @@ namespace TestAddIn
             int rightMargin = e.MarginBounds.Right - 5;
             int bottomMargin = 8;
 
-            using (Font font = new Font("Arial", 12))
-            using (Font smallFont = new Font("Arial", 10))
-            using (Font boldFont = new Font("Arial", 12, FontStyle.Bold)) // For totals
+            using (Font font = new Font("Arial", 9))
+            using (Font smallFont = new Font("Arial", 8))
+            using (Font boldFont = new Font("Arial", 9, FontStyle.Bold)) // For totals
             {
                 int lineHeight = (int)font.GetHeight(e.Graphics) + 4;
                 int smallLineHeight = (int)smallFont.GetHeight(e.Graphics) + 3;
                 int yPos = topMargin;
 
                 // Define column widths - adjusted for better spacing
-                int col1Width = 60;   // Anz
-                int col2Width = 50;   // Nr.
-                int col3Width = 280;  // Bez. (wider for long names)
-                int col4Width = 50;   // Size
+                int col1Width = 26;   // Anz
+                int col2Width = 23;   // Nr.
+                int col3Width = 130;  // Bez. (wider for long names)
+                int col4Width = 30;   // Size
 
                 int colStart = leftMargin;
 
@@ -995,10 +1024,10 @@ namespace TestAddIn
                 e.Graphics.DrawString($"Datum: {DateTime.Now:dd.MM.yyyy HH:mm:ss}", font, Brushes.Black, leftMargin, yPos);
                 yPos += lineHeight;
 
-                string nameTelLine = $"KNr: {customer.KNr} - Name: {customer.Name}"; // NO SPACE in "KNr:"
+                string nameTelLine = $"KNr: {customer.KNr} - N: {customer.Name}"; // NO SPACE in "KNr:"
                 if (!string.IsNullOrEmpty(customer.Tel) && customer.Tel != "0")
                 {
-                    nameTelLine += $" - Tel: {customer.Tel}";
+                    nameTelLine += $"-Tel: {customer.Tel}";
                 }
                 e.Graphics.DrawString(nameTelLine, font, Brushes.Black, leftMargin, yPos);
                 yPos += lineHeight;
@@ -1010,10 +1039,10 @@ namespace TestAddIn
                 // Draw vertical separators like in first image
                 float headerY = yPos - 2; // Slightly above the line
 
-                e.Graphics.DrawString("Anz", font, Brushes.Black, colStart, yPos);
+                e.Graphics.DrawString("Anz", smallFont, Brushes.Black, colStart, yPos);
                 e.Graphics.DrawLine(Pens.Black, colStart + col1Width, headerY, colStart + col1Width, yPos + lineHeight);
 
-                e.Graphics.DrawString("Nr.", font, Brushes.Black, colStart + col1Width + 2, yPos);
+                e.Graphics.DrawString("Nr.", smallFont, Brushes.Black, colStart + col1Width + 2, yPos);
                 e.Graphics.DrawLine(Pens.Black, colStart + col1Width + col2Width, headerY, colStart + col1Width + col2Width, yPos + lineHeight);
 
                 e.Graphics.DrawString("Bez.", font, Brushes.Black, colStart + col1Width + col2Width + 2, yPos);
@@ -1158,7 +1187,9 @@ namespace TestAddIn
                         KNr = knr.Text.Trim(),
                         Anz = row.Cells[0].Value?.ToString()?.Trim() ?? "",
                         Nr = row.Cells[1].Value?.ToString()?.Trim() ?? "",
-                        Bez = row.Cells[2].Value?.ToString()?.Trim() ?? "Diverse#",
+                        Bez = row.Cells["lastOrderNr"].Value?.ToString() == "0"
+                        ? (row.Cells["lastOrderExtra"].Value?.ToString()?.Trim() ?? "Diverse#")
+                        : row.Cells["lastOrderName"].Value?.ToString()?.Trim() ?? "",
                         Size = row.Cells[3].Value?.ToString()?.Trim() ?? "-",
                         Extra = row.Cells[4].Value?.ToString()?.Trim() ?? "",
                         Price = row.Cells[5].Value?.ToString()?.Trim() ?? "",
@@ -1416,6 +1447,18 @@ namespace TestAddIn
 
                         knr.ReadOnly = true;
                         knr.Text = (maxKnr + 1).ToString();
+                        
+                        // populate automatic phone number if not found 
+                        string inputStr = input.ToString();
+                        bool isPhone = System.Text.RegularExpressions.Regex.IsMatch(
+                            inputStr,
+                            @"^\+?[0-9\s\-]{7,20}$"
+                        );
+
+                        if (isPhone)
+                        {
+                            phone.Text = inputStr;
+                        }
                         name.Focus();
                     }
                     return;
@@ -2007,21 +2050,38 @@ namespace TestAddIn
                         if (!expr.StartsWith("+") && !expr.StartsWith("-"))
                             expr = "+" + expr;
 
-                        var matches = System.Text.RegularExpressions.Regex.Matches(expr, @"[+-]\d+");
+                        var matches = System.Text.RegularExpressions.Regex.Matches(expr, @"([+-]?\d+|Diverse#\d+(?:[.,]\d+)?)");
 
                         foreach (System.Text.RegularExpressions.Match match in matches)
                         {
                             string token = match.Value;
-                            bool isPositive = token.StartsWith("+");
-                            int extraId = int.Parse(token.Substring(1));
 
-                            var extraObj = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
-                            if (extraObj != null)
+                            // FIX: Handle tokens that don't start with + or -
+                            bool isPositive;
+                            string valuePart;
+
+                            if (token.StartsWith("+") || token.StartsWith("-"))
                             {
-                                if (isPositive)
-                                    totalExtra += (decimal)extraObj.Price;
-                                else
-                                    totalExtra -= (decimal)extraObj.Price;
+                                isPositive = token.StartsWith("+");
+                                valuePart = token.Substring(1);
+                            }
+                            else
+                            {
+                                // Default to positive if no sign
+                                isPositive = true;
+                                valuePart = token;
+                            }
+
+                            if (int.TryParse(valuePart, out int extraId))
+                            {
+                                var extraObj = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
+                                if (extraObj != null)
+                                {
+                                    if (isPositive)
+                                        totalExtra += (decimal)extraObj.Price;
+                                    else
+                                        totalExtra -= (decimal)extraObj.Price;
+                                }
                             }
                         }
                     }
@@ -2124,6 +2184,7 @@ namespace TestAddIn
             }
             else if (key == Keys.F9)
             {
+                SaveTableOrdersToFile();
                 var customer = Customer.FindByKNr(this.knr.Text);
                 PrintOrder(lastOrdersTable, customer); // pass your customer and DGV
             } else if (key == Keys.Escape)

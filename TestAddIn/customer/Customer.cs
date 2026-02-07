@@ -83,7 +83,7 @@ namespace TestAddIn.customer
                     KNr = "0",
                     Name = "Abholer 1",
                     Tel = "089 1404490",
-                    Str = "Truderinger Str. 318",
+                    Str = "Truderinger Str. 0",
                     Ort = "81825 München",
                 };
             }
@@ -95,7 +95,7 @@ namespace TestAddIn.customer
                     KNr = "00",
                     Name = "Abholer 2",
                     Tel = "089 1404490",
-                    Str = "Truderinger Str. 318",
+                    Str = "Truderinger Str. 0",
                     Ort = "81825 München",
                 };
             }

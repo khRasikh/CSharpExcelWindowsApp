@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -7,7 +8,6 @@ using System.Windows.Forms;
 using TestAddIn.article;
 using TestAddIn.extras;
 using TestAddIn.orders;
-using System;
 
 namespace TestAddIn
 {
@@ -122,7 +122,7 @@ namespace TestAddIn
             dgvOrders.CellDoubleClick += DgvOrders_CellDoubleClick;
             dgvArticles.CellDoubleClick += DgvArticles_CellDoubleClick;
 
-            lblOrdersSummary = CreateEnhancedSummaryLabel(tabOrders, Color.FromArgb(0, 120, 215));
+            lblOrdersSummary = CreateEnhancedSummaryLabel(tabOrders, Color.FromArgb(40, 167, 69)); // Kasse 1 green
             lblKasse1Summary = CreateEnhancedSummaryLabel(tabArticles, Color.FromArgb(40, 167, 69));
             lblKasse2Summary = CreateEnhancedSummaryLabel(tabArticlesTwo, Color.FromArgb(220, 53, 69));
             lblExtrasSummary = CreateEnhancedSummaryLabel(tabExtras, Color.FromArgb(255, 193, 7));
@@ -237,8 +237,8 @@ namespace TestAddIn
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(21, 21, 235);
 
             // Selection colors
-            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(255, 0, 204);
-            dgv.DefaultCellStyle.SelectionForeColor = Color.FromArgb(255, 255, 0);
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(230, 0, 180);
+            dgv.DefaultCellStyle.SelectionForeColor = Color.Yellow;
             dgv.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(230, 0, 180);
             dgv.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.Yellow;
 
@@ -363,9 +363,46 @@ namespace TestAddIn
             }
         }
 
+        private void ApplyKasse1Theme(DataGridView dgv)
+        {
+            // Same colors as your Kasse 1 tab
+            dgv.BackgroundColor = Color.FromArgb(21, 21, 235);
+            dgv.GridColor = Color.FromArgb(17, 17, 214);
+            dgv.DefaultCellStyle.BackColor = Color.FromArgb(21, 21, 235);
+            dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(21, 21, 235);
+
+            // Selection colors
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(230, 0, 180);
+            dgv.DefaultCellStyle.SelectionForeColor = Color.Yellow;
+            dgv.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(230, 0, 180);
+            dgv.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.Yellow;
+
+            // Text colors
+            dgv.DefaultCellStyle.ForeColor = Color.FromArgb(220, 220, 220);
+            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 18);
+            dgv.AlternatingRowsDefaultCellStyle.ForeColor = Color.FromArgb(240, 240, 240);
+
+            // Header styling (Kasse 1 uses green header)
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(40, 167, 69); // Kasse 1 green
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 18, FontStyle.Bold);
+            dgv.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgv.ColumnHeadersHeight = 40;
+            dgv.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+
+            // Row styling
+            dgv.RowTemplate.Height = 36;
+            dgv.RowTemplate.DefaultCellStyle.Padding = new Padding(2);
+            dgv.BorderStyle = BorderStyle.FixedSingle;
+
+            // Grid lines
+            dgv.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            dgv.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+        }
         private void LoadAllOrders()
         {
-            ApplyEnhancedDarkTheme(dgvOrders);
+            // CHANGE: Apply Kasse 1 theme instead of enhanced dark theme
+            ApplyKasse1Theme(dgvOrders);  // Changed from ApplyEnhancedDarkTheme(dgvOrders)
 
             dgvOrders.Rows.Clear();
             dgvOrders.Columns.Clear();
@@ -377,21 +414,30 @@ namespace TestAddIn
             dgvOrders.Columns.Add("Size", "Size");
             dgvOrders.Columns.Add("Extra", "Extra");
             dgvOrders.Columns.Add("Price", "Preis");
-            dgvOrders.Columns.Add("Rabbat", "Rabatt");
+            dgvOrders.Columns.Add("Rabbat", "Rabatt %");
 
             dgvOrders.Columns["Bez"].Width = 250;
             dgvOrders.Columns["Price"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             dgvOrders.Columns["Rabbat"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            dgvOrders.Columns["Price"].DefaultCellStyle.Format = "C2";
 
             foreach (var o in OrdersManager.GetAll())
             {
-                dgvOrders.Rows.Add(o.KNr, o.Anz, o.Nr, o.Bez, o.Size, "€" + o.Extra, "€" + o.Price, "%" + o.Rabbat);
+                dgvOrders.Rows.Add(
+                    o.KNr,
+                    o.Anz,
+                    o.Nr,
+                    o.Bez,
+                    o.Size,
+                    o.Extra,  // No "€" prefix for extra IDs
+                    FormatPriceForDisplay(o.Price),
+                    FormatPercentage(o.Rabbat)
+                );
             }
 
             UpdateOrdersSummary();
             HighlightExpensiveOrders();
         }
-
         private void LoadAllArticlesCheckoutOne()
         {
             ApplyEnhancedDarkTheme(dgvArticles);
@@ -411,6 +457,7 @@ namespace TestAddIn
             for (int i = 2; i < dgvArticles.Columns.Count; i++)
             {
                 dgvArticles.Columns[i].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvArticles.Columns[i].DefaultCellStyle.Format = "C2";
             }
 
             articles = Article.LoadArticles("article.json");
@@ -420,10 +467,10 @@ namespace TestAddIn
                 dgvArticles.Rows.Add(
                     a.CompNum,
                     a.Name,
-                    FormatPrice(a.SinglPreis),
-                    FormatPrice(a.JumboPreis),
-                    FormatPrice(a.FamilyPreis),
-                    FormatPrice(a.PartyPreis)
+                    a.SinglPreis,
+                    a.JumboPreis,
+                    a.FamilyPreis,
+                    a.PartyPreis
                 );
             }
 
@@ -448,6 +495,7 @@ namespace TestAddIn
             for (int i = 2; i < dgvArticlesTwo.Columns.Count; i++)
             {
                 dgvArticlesTwo.Columns[i].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvArticlesTwo.Columns[i].DefaultCellStyle.Format = "C2";
             }
 
             articlesTwo = Article.LoadArticles("article2.json");
@@ -457,10 +505,10 @@ namespace TestAddIn
                 dgvArticlesTwo.Rows.Add(
                     a.CompNum,
                     a.Name,
-                    FormatPrice(a.SinglPreis),
-                    FormatPrice(a.JumboPreis),
-                    FormatPrice(a.FamilyPreis),
-                    FormatPrice(a.PartyPreis)
+                    a.SinglPreis,
+                    a.JumboPreis,
+                    a.FamilyPreis,
+                    a.PartyPreis
                 );
             }
 
@@ -487,6 +535,7 @@ namespace TestAddIn
             for (int i = 3; i < dgvExtras.Columns.Count; i++)
             {
                 dgvExtras.Columns[i].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvExtras.Columns[i].DefaultCellStyle.Format = "C2";
             }
 
             var list = ExtrasManager.GetAll();
@@ -497,52 +546,172 @@ namespace TestAddIn
                     ex.Id,
                     ex.Code,
                     ex.Name,
-                    FormatPrice(ex.SinglPreis),
-                    FormatPrice(ex.JumboPreis),
-                    FormatPrice(ex.FamilyPreis),
-                    FormatPrice(ex.PartyPreis)
+                    ex.SinglPreis,
+                    ex.JumboPreis,
+                    ex.FamilyPreis,
+                    ex.PartyPreis
                 );
             }
 
             UpdateExtrasSummary();
         }
 
-        // ENHANCED: Better price formatting
-        private string FormatPrice(object price)
+        private string FormatPriceForDisplay(string priceText)
         {
-            if (price == null) return "€0,00";
+            if (string.IsNullOrWhiteSpace(priceText))
+                return "€0,00";
 
-            string priceStr = price.ToString();
-            if (decimal.TryParse(priceStr, out decimal priceDec))
+            // Clean the price text
+            string cleanPrice = priceText
+                .Replace("€", "")
+                .Replace("$", "")
+                .Trim();
+
+            // Try to parse as decimal
+            if (decimal.TryParse(cleanPrice.Replace(",", "."),
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out decimal price))
             {
-                return $"€{priceDec:F2}".Replace(".", ",");
+                return $"€{price:F2}".Replace(".", ",");
             }
-            return $"€{priceStr}";
+
+            return "€0,00";
         }
 
-        // ENHANCED: Improved summary with better parsing
+        private string FormatPercentage(string percentageText)
+        {
+            if (string.IsNullOrWhiteSpace(percentageText))
+                return "0%";
+
+            string clean = percentageText
+                .Replace("%", "")
+                .Replace(" ", "")
+                .Trim();
+
+            if (decimal.TryParse(clean.Replace(",", "."),
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out decimal percentage))
+            {
+                return $"{percentage}%";
+            }
+
+            return "0%";
+        }
+
         private void UpdateOrdersSummary()
         {
-            int totalOrders = dgvOrders.Rows.Count;
-            decimal totalPrice = 0;
-            decimal totalRabbat = 0;
+            int totalOrders = 0;
+            decimal totalBrutto = 0;
+            decimal totalDiscountAmount = 0;
+            decimal totalExtraAmount = 0; // NEW: Track extra amounts
 
             foreach (DataGridViewRow row in dgvOrders.Rows)
             {
                 if (!row.IsNewRow)
                 {
-                    decimal price = ParseCellValue(row.Cells["Price"]);
-                    decimal rabbat = ParseCellValue(row.Cells["Rabbat"]);
+                    totalOrders++;
 
-                    totalPrice += price;
-                    totalRabbat += rabbat;
+                    // Parse price value
+                    decimal price = ParseCellValue(row.Cells["Price"]);
+                    totalBrutto += price;
+
+                    // Parse discount percentage and calculate discount amount
+                    decimal discountPercentage = ParseCellValue(row.Cells["Rabbat"]);
+                    decimal discountAmount = price * (discountPercentage / 100m);
+                    totalDiscountAmount += discountAmount;
+
+                    // NEW: Calculate extra amount from extra IDs
+                    string extraInput = row.Cells["Extra"].Value?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(extraInput))
+                    {
+                        decimal extraRowAmount = CalculateExtraAmount(extraInput);
+                        totalExtraAmount += extraRowAmount;
+                    }
                 }
             }
 
-            string formattedPrice = $"€{totalPrice:F2}".Replace(".", ",");
-            string formattedRabatt = $"€{totalRabbat:F2}".Replace(".", ",");
+            // NEW: Include extra amount in total
+            decimal totalNetto = (totalBrutto + totalExtraAmount) - totalDiscountAmount;
 
-            lblOrdersSummary.Text = $"📊 Bestellungen: {totalOrders} | Gesamtpreis: {formattedPrice} | Rabatt gesamt: {formattedRabatt}";
+            lblOrdersSummary.Text =
+                $"📊 Bestellungen: {totalOrders} | " +
+                $"Brutto: €{totalBrutto:F2} | " +
+                $"Extras: €{totalExtraAmount:F2} | " +  // NEW: Show extras
+                $"Rabatt: €{totalDiscountAmount:F2} | " +
+                $"Netto: €{totalNetto:F2}";
+        }
+
+        // NEW: Add this method to calculate extra amounts from IDs
+        private decimal CalculateExtraAmount(string extraInput)
+        {
+            if (string.IsNullOrWhiteSpace(extraInput))
+                return 0;
+
+            decimal totalExtra = 0;
+
+            try
+            {
+                // Remove spaces and ensure it starts with + or -
+                string expr = extraInput.Replace(" ", "");
+                if (!expr.StartsWith("+") && !expr.StartsWith("-"))
+                    expr = "+" + expr;
+
+                // Parse the expression (e.g., "+2+3-2")
+                var matches = System.Text.RegularExpressions.Regex.Matches(
+                    expr,
+                    @"([+-]?\d+|Diverse#\d+(?:[.,]\d+)?)"
+                );
+
+                foreach (System.Text.RegularExpressions.Match match in matches)
+                {
+                    string token = match.Value;
+
+                    // Skip Diverse# entries (already calculated in base price)
+                    if (token.Contains("Diverse#", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    // Parse sign and ID
+                    bool isPositive;
+                    string valuePart;
+
+                    if (token.StartsWith("+") || token.StartsWith("-"))
+                    {
+                        isPositive = token.StartsWith("+");
+                        valuePart = token.Substring(1);
+                    }
+                    else
+                    {
+                        isPositive = true;
+                        valuePart = token;
+                    }
+
+                    // Parse extra ID
+                    if (int.TryParse(valuePart, out int extraId))
+                    {
+                        // Get extra price (use default size 'S' if unknown)
+                        char sizeCode = 'S'; // Default size
+                        var extra = ExtrasManager.GetExtraByIdCode(extraId, sizeCode);
+
+                        if (extra != null)
+                        {
+                            totalExtra += isPositive ? extra.Price : -extra.Price;
+                        }
+                        else
+                        {
+                            // Log missing extra for debugging
+                            Console.WriteLine($"Extra ID {extraId} not found");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error calculating extra amount: {ex.Message}");
+            }
+
+            return totalExtra;
         }
 
         private decimal ParseCellValue(DataGridViewCell cell)
@@ -552,12 +721,13 @@ namespace TestAddIn
             string text = cell.Value.ToString()
                 .Replace("€", "")
                 .Replace("%", "")
+                .Replace(" ", "")
                 .Trim();
 
             // Handle German decimal format
             if (text.Contains(","))
             {
-                // Handle thousand separators
+                // Remove thousand separators if present
                 if (text.Contains("."))
                 {
                     text = text.Replace(".", "");
@@ -578,60 +748,125 @@ namespace TestAddIn
 
         private void UpdateKasse1Summary()
         {
-            int count = dgvArticles.Rows.Count;
-            decimal totalValue = CalculateTotalArticlesValue(dgvArticles);
-            lblKasse1Summary.Text = $"💰 Artikel (Kasse 1): {count} Artikel | Gesamtwert: €{totalValue:F2}".Replace(".", ",");
+            int count = 0;
+            decimal avgSinglePrice = 0;
+            decimal avgJumboPrice = 0;
+            decimal avgFamilyPrice = 0;
+            decimal avgPartyPrice = 0;
+
+            foreach (DataGridViewRow row in dgvArticles.Rows)
+            {
+                if (!row.IsNewRow)
+                {
+                    count++;
+                    avgSinglePrice += ParseCellValue(row.Cells["SinglPreis"]);
+                    avgJumboPrice += ParseCellValue(row.Cells["JumboPreis"]);
+                    avgFamilyPrice += ParseCellValue(row.Cells["FamilyPreis"]);
+                    avgPartyPrice += ParseCellValue(row.Cells["PartyPreis"]);
+                }
+            }
+
+            if (count > 0)
+            {
+                avgSinglePrice /= count;
+                avgJumboPrice /= count;
+                avgFamilyPrice /= count;
+                avgPartyPrice /= count;
+            }
+
+            lblKasse1Summary.Text =
+                $"💰 Kasse 1: {count} Artikel | " +
+                $"⌀ Single: €{avgSinglePrice:F2} | " +
+                $"⌀ Jumbo: €{avgJumboPrice:F2} | " +
+                $"⌀ Family: €{avgFamilyPrice:F2} | " +
+                $"⌀ Party: €{avgPartyPrice:F2}";
         }
 
         private void UpdateKasse2Summary()
         {
-            int count = dgvArticlesTwo.Rows.Count;
-            decimal totalValue = CalculateTotalArticlesValue(dgvArticlesTwo);
-            lblKasse2Summary.Text = $"💰 Artikel (Kasse 2): {count} Artikel | Gesamtwert: €{totalValue:F2}".Replace(".", ",");
+            int count = 0;
+            decimal avgSinglePrice = 0;
+            decimal avgJumboPrice = 0;
+            decimal avgFamilyPrice = 0;
+            decimal avgPartyPrice = 0;
+
+            foreach (DataGridViewRow row in dgvArticlesTwo.Rows)
+            {
+                if (!row.IsNewRow)
+                {
+                    count++;
+                    avgSinglePrice += ParseCellValue(row.Cells["SinglPreis"]);
+                    avgJumboPrice += ParseCellValue(row.Cells["JumboPreis"]);
+                    avgFamilyPrice += ParseCellValue(row.Cells["FamilyPreis"]);
+                    avgPartyPrice += ParseCellValue(row.Cells["PartyPreis"]);
+                }
+            }
+
+            if (count > 0)
+            {
+                avgSinglePrice /= count;
+                avgJumboPrice /= count;
+                avgFamilyPrice /= count;
+                avgPartyPrice /= count;
+            }
+
+            lblKasse2Summary.Text =
+                $"💰 Kasse 2: {count} Artikel | " +
+                $"⌀ Single: €{avgSinglePrice:F2} | " +
+                $"⌀ Jumbo: €{avgJumboPrice:F2} | " +
+                $"⌀ Family: €{avgFamilyPrice:F2} | " +
+                $"⌀ Party: €{avgPartyPrice:F2}";
         }
 
         private void UpdateExtrasSummary()
         {
-            int count = dgvExtras.Rows.Count;
-            lblExtrasSummary.Text = $"➕ Extras: {count} verfügbar";
-        }
+            int count = 0;
+            decimal avgSinglePrice = 0;
+            decimal avgJumboPrice = 0;
+            decimal avgFamilyPrice = 0;
+            decimal avgPartyPrice = 0;
 
-        private decimal CalculateTotalArticlesValue(DataGridView dgv)
-        {
-            decimal total = 0;
-            foreach (DataGridViewRow row in dgv.Rows)
+            foreach (DataGridViewRow row in dgvExtras.Rows)
             {
-                if (!row.IsNewRow && row.Cells["SinglPreis"].Value != null)
+                if (!row.IsNewRow)
                 {
-                    total += ParseCellValue(row.Cells["SinglPreis"]);
+                    count++;
+                    avgSinglePrice += ParseCellValue(row.Cells["SPrice"]);
+                    avgJumboPrice += ParseCellValue(row.Cells["JPrice"]);
+                    avgFamilyPrice += ParseCellValue(row.Cells["FPrice"]);
+                    avgPartyPrice += ParseCellValue(row.Cells["PPrice"]);
                 }
             }
-            return total;
+
+            if (count > 0)
+            {
+                avgSinglePrice /= count;
+                avgJumboPrice /= count;
+                avgFamilyPrice /= count;
+                avgPartyPrice /= count;
+            }
+
+            lblExtrasSummary.Text =
+                $"➕ Extras: {count} verfügbar | " +
+                $"⌀ Single: €{avgSinglePrice:F2} | " +
+                $"⌀ Jumbo: €{avgJumboPrice:F2} | " +
+                $"⌀ Family: €{avgFamilyPrice:F2} | " +
+                $"⌀ Party: €{avgPartyPrice:F2}";
         }
 
-        // ENHANCED: Highlight expensive orders
         private void HighlightExpensiveOrders()
         {
             foreach (DataGridViewRow row in dgvOrders.Rows)
             {
-                if (!row.IsNewRow)
-                {
                     decimal price = ParseCellValue(row.Cells["Price"]);
-                    if (price > 50)
-                    {
-                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 220, 220);
-                        row.DefaultCellStyle.ForeColor = Color.DarkRed;
-                    }
-                    else if (price > 20)
-                    {
-                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 240, 220);
-                        row.DefaultCellStyle.ForeColor = Color.DarkOrange;
-                    }
-                }
+
+                    // Use theme-consistent highlight colors
+                    // Reset to theme colors
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(21, 21, 235);
+                    row.DefaultCellStyle.ForeColor = Color.FromArgb(220, 220, 220);
             }
         }
 
-        // ENHANCED: Filter functionality
         private void FilterDataGridView(DataGridView dgv, string searchText)
         {
             if (string.IsNullOrWhiteSpace(searchText))
@@ -661,7 +896,6 @@ namespace TestAddIn
             }
         }
 
-        // ENHANCED: Event handlers for new features
         private void BtnRefreshAll_Click(object sender, EventArgs e)
         {
             LoadAllData();
@@ -736,7 +970,6 @@ namespace TestAddIn
             }
         }
 
-        // ENHANCED: Context menu actions
         private void CopySelectedRows()
         {
             if (dgvOrders.SelectedRows.Count > 0)
@@ -769,7 +1002,6 @@ namespace TestAddIn
             dgvOrders.SelectAll();
         }
 
-        // Original delete functionality (enhanced with confirmation)
         private void DeleteSelectedOrders()
         {
             if (dgvOrders.SelectedRows.Count == 0)
@@ -804,7 +1036,6 @@ namespace TestAddIn
             }
         }
 
-        // ENHANCED: Export to CSV
         private void ExportToCsv(DataGridView dgv, string filePath)
         {
             using (var writer = new StreamWriter(filePath, false, System.Text.Encoding.UTF8))
@@ -838,46 +1069,55 @@ namespace TestAddIn
             return field;
         }
 
-        // ENHANCED: Summary report
         private string GenerateSummaryReport()
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("===== ZUSAMMENFASSUNG =====");
+            sb.AppendLine("===== ZUSAMMENFASSUNG DATENBANK =====");
             sb.AppendLine($"Generiert am: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
             sb.AppendLine();
 
             // Orders summary
-            int totalOrders = dgvOrders.Rows.Count;
-            decimal totalPrice = 0;
+            int totalOrders = 0;
+            decimal totalBrutto = 0;
+            decimal totalDiscountAmount = 0;
+            decimal totalExtraAmount = 0; // NEW
+
             foreach (DataGridViewRow row in dgvOrders.Rows)
             {
                 if (!row.IsNewRow)
                 {
-                    totalPrice += ParseCellValue(row.Cells["Price"]);
+                    totalOrders++;
+                    decimal price = ParseCellValue(row.Cells["Price"]);
+                    decimal discountPercentage = ParseCellValue(row.Cells["Rabbat"]);
+
+                    totalBrutto += price;
+                    totalDiscountAmount += price * (discountPercentage / 100m);
+
+                    // NEW: Calculate extras
+                    string extraInput = row.Cells["Extra"].Value?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(extraInput))
+                    {
+                        totalExtraAmount += CalculateExtraAmount(extraInput);
+                    }
                 }
             }
+
+            decimal totalWithExtras = totalBrutto + totalExtraAmount; // NEW
+            decimal totalNetto = totalWithExtras - totalDiscountAmount; // Updated
+
             sb.AppendLine($"📋 BESTELLUNGEN:");
-            sb.AppendLine($"   Gesamt: {totalOrders} Bestellungen");
-            sb.AppendLine($"   Umsatz: €{totalPrice:F2}".Replace(".", ","));
+            sb.AppendLine($"   Gesamtanzahl: {totalOrders}");
+            sb.AppendLine($"   Bruttosumme: €{totalBrutto:F2}".Replace(".", ","));
+            sb.AppendLine($"   Extrasumme: €{totalExtraAmount:F2}".Replace(".", ",")); // NEW
+            sb.AppendLine($"   Gesamtsumme (mit Extras): €{totalWithExtras:F2}".Replace(".", ",")); // NEW
+            sb.AppendLine($"   Rabattsumme: €{totalDiscountAmount:F2}".Replace(".", ","));
+            sb.AppendLine($"   Nettosumme: €{totalNetto:F2}".Replace(".", ","));
             sb.AppendLine();
-
-            // Articles summary
-            sb.AppendLine($"💰 ARTIKEL:");
-            sb.AppendLine($"   Kasse 1: {dgvArticles.Rows.Count} Artikel");
-            sb.AppendLine($"   Kasse 2: {dgvArticlesTwo.Rows.Count} Artikel");
-            sb.AppendLine($"   Extras: {dgvExtras.Rows.Count} verfügbar");
-            sb.AppendLine();
-
-            // Statistics
-            sb.AppendLine($"📊 STATISTIKEN:");
-            sb.AppendLine($"   Durchschnittlicher Bestellwert: €{(totalOrders > 0 ? totalPrice / totalOrders : 0):F2}".Replace(".", ","));
-            sb.AppendLine($"   Aktive Kassen: 2");
-            sb.AppendLine($"   Letzte Aktualisierung: {DateTime.Now:HH:mm:ss}");
+            sb.AppendLine("=== ENDE DER ZUSAMMENFASSUNG ===");
 
             return sb.ToString();
         }
 
-        // ENHANCED: Status management
         private void UpdateStatus(string message)
         {
             statusLabel.Text = $" {message}";
@@ -894,7 +1134,6 @@ namespace TestAddIn
             Application.DoEvents();
         }
 
-        // Original key handlers
         private void DgvOrders_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Delete)
@@ -911,7 +1150,6 @@ namespace TestAddIn
                 DeleteSelectedArticles();
         }
 
-        // Original article delete functionality
         private void DeleteSelectedArticles()
         {
             var dgv = tabs.SelectedTab == tabs.TabPages["💰 Kasse 1"] ? dgvArticles : dgvArticlesTwo;
@@ -945,15 +1183,6 @@ namespace TestAddIn
             LoadAllArticlesCheckoutOne();
             LoadAllArticlesCheckoutTwo();
             UpdateStatus("Artikel gelöscht");
-        }
-
-        // Utility method for extracting numbers (kept for compatibility)
-        private string ExtractNumber(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input)) return "0";
-            input = input.Replace("€", "").Trim();
-            var filtered = new string(input.Where(c => char.IsDigit(c) || c == ',' || c == '.').ToArray());
-            return string.IsNullOrWhiteSpace(filtered) ? "0" : filtered;
         }
     }
 }

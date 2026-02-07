@@ -86,7 +86,7 @@ namespace TestAddIn.orders
             var list = (ordersForKnr ?? Enumerable.Empty<Order>()).ToList();
             if (list.Count == 0)
             {
-                MessageBox.Show("Keine Bestellungen zum Speichern vorhanden.");
+                //MessageBox.Show("Keine Bestellungen zum Speichern vorhanden.");
                 return;
             }
 
